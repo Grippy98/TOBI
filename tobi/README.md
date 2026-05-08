@@ -3,7 +3,7 @@
 **TI Out of Box Installer**: terminal OS installer prototype for Texas Instruments Sitara starter kit evaluation modules.
 
 The first target board was **SK-AM62P-LP** using TI's Yocto machine name `am62pxx-evm`.
-The catalog now includes SK-AM62P-LP, SK-AM62-LP, SK-AM62-SIP, SK-AM62B, SK-AM62A-LP, TMDS62LEVM, SK-AM64B, SK-AM68, and SK-AM69 entries. SK-AM62-LP also includes Armbian community images from the Armbian board downloads.
+The catalog now includes SK-AM62P-LP, SK-AM62-LP, SK-AM62-SIP, SK-AM62B, SK-AM62A-LP, TMDS62LEVM, SK-AM64B, SK-AM68, and SK-AM69 entries. Supported boards that also have Armbian TI board pages include Armbian Community images from the Armbian board downloads; SK-AM62A-LP currently remains TI-only because Armbian does not publish a matching board page.
 
 ## Catalog
 
