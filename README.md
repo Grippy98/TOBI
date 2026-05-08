@@ -2,7 +2,20 @@
 
 **TOBI** is the **TI Out of Box Installer** for Texas Instruments Sitara starter kit evaluation modules. It boots a small RAM-resident Linux environment, presents a terminal UI, downloads a selected OS image, streams/decompresses it directly to target media, and reboots into the installed image.
 
-The first hardware target is **SK-AM62P-LP** / Yocto machine `am62pxx-evm`.
+The first hardware target was **SK-AM62P-LP** / Yocto machine `am62pxx-evm`.
+TOBI now carries board definitions and catalog entries for these starter kits and EVMs:
+
+| Board | Yocto `MACHINE` | Catalog SDK |
+| --- | --- | --- |
+| SK-AM62P-LP | `am62pxx-evm` | `PROCESSOR-SDK-LINUX-AM62P` |
+| SK-AM62-LP | `am62xx-lp-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
+| SK-AM62-SIP | `am62xxsip-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
+| SK-AM62B | `am62xx-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
+| SK-AM62A-LP | `am62axx-evm` | `PROCESSOR-SDK-LINUX-AM62A` |
+| TMDS62LEVM | `am62lxx-evm` | `AM62L-LINUX-SDK` |
+| SK-AM64B | `am64xx-evm` | `PROCESSOR-SDK-LINUX-AM64X` |
+| SK-AM68 | `am68-sk` | `PROCESSOR-SDK-LINUX-AM68` |
+| SK-AM69 | `am69-sk` | `PROCESSOR-SDK-LINUX-AM69` |
 
 ## Layout
 
@@ -79,6 +92,18 @@ On Apple silicon, both the Rust app and the TI Yocto image can be built in nativ
 ./yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh
 ```
 
+Build a specific board image by setting `MACHINE`:
+
+```sh
+MACHINE=am64xx-evm ./yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh
+```
+
+Build all currently defined board images:
+
+```sh
+./yocto/scripts/build-tobi-all-sd-images-ubuntu-arm64.sh
+```
+
 The Yocto helper uses Docker named volumes for the TI SDK checkout, downloads, sstate cache, and build home so BitBake runs on a Linux filesystem instead of macOS' default case-insensitive filesystem.
 
 ## Build The Yocto Image On Linux
@@ -112,5 +137,7 @@ tobi-initramfs-am62pxx-evm.rootfs.cpio.xz
 tobi-sd-image-am62pxx-evm.rootfs.wic.xz
 tobi-sd-image-am62pxx-evm.rootfs.wic.bmap
 ```
+
+Replace `am62pxx-evm` with another supported machine to generate that board's TOBI image.
 
 The SD image is user-flashable. It boots TOBI into RAM and leaves the target eMMC free to be overwritten by the installer.

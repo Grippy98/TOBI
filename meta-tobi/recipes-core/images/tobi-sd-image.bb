@@ -22,9 +22,20 @@ IMAGE_ROOTFS_SIZE = "65536"
 
 TOBI_INITRAMFS_IMAGE = "tobi-initramfs-${MACHINE}.rootfs.cpio.xz"
 
+TOBI_BOOT_DTB_FILES = ""
+TOBI_BOOT_DTB_FILES:am62pxx-evm = "k3-am62p5-sk.dtb"
+TOBI_BOOT_DTB_FILES:am62xx-evm = "k3-am625-sk.dtb"
+TOBI_BOOT_DTB_FILES:am62xx-lp-evm = "k3-am62-lp-sk.dtb"
+TOBI_BOOT_DTB_FILES:am62xxsip-evm = "k3-am6254atl-sk.dtb"
+TOBI_BOOT_DTB_FILES:am62axx-evm = "k3-am62a7-sk.dtb"
+TOBI_BOOT_DTB_FILES:am62lxx-evm = "k3-am62l3-evm.dtb"
+TOBI_BOOT_DTB_FILES:am64xx-evm = "k3-am642-sk.dtb"
+TOBI_BOOT_DTB_FILES:am68-sk = "k3-am68-sk-base-board.dtb"
+TOBI_BOOT_DTB_FILES:am69-sk = "k3-am69-sk.dtb"
+
 IMAGE_BOOT_FILES += "\
     Image \
-    k3-am62p5-sk.dtb;dtb/ti/k3-am62p5-sk.dtb \
+    ${@' '.join(['%s;dtb/ti/%s' % (dtb, dtb) for dtb in d.getVar('TOBI_BOOT_DTB_FILES').split()])} \
     ${TOBI_INITRAMFS_IMAGE};uInitrd \
     tobi-uEnv.txt;uEnv.txt \
 "

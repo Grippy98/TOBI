@@ -26,10 +26,15 @@ pub fn detect_board(mode: RunMode, catalog: &Catalog) -> DetectedBoard {
 }
 
 fn mock_board(catalog: &Catalog) -> DetectedBoard {
+    let mock_board_id = std::env::var("TOBI_MOCK_BOARD")
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "sk-am62p-lp".to_string());
     let device = catalog
         .devices
         .iter()
-        .find(|device| device.id == "sk-am62p-lp")
+        .find(|device| device.id == mock_board_id)
         .or_else(|| catalog.devices.first());
 
     match device {

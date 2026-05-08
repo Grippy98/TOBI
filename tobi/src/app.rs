@@ -5,7 +5,7 @@ use std::process::Command;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
-use crate::board::DetectedBoard;
+use crate::board::{self, DetectedBoard};
 use crate::custom_image::{
     CustomImage, custom_placeholder, is_custom_placeholder, scan_custom_images,
 };
@@ -105,6 +105,7 @@ impl App {
         proxy_url: Option<String>,
         warning: Option<String>,
     ) -> Self {
+        filter_catalog_for_board(&mut catalog, &board);
         catalog.images.push(custom_placeholder());
         sort_images_for_display(&mut catalog.images);
         let image_index = catalog
@@ -654,6 +655,10 @@ impl App {
     }
 
     fn replace_catalog(&mut self, mut catalog: Catalog) {
+        if self.board.id.is_none() {
+            self.board = board::detect_board(self.run_mode, &catalog);
+        }
+        filter_catalog_for_board(&mut catalog, &self.board);
         catalog.images.push(custom_placeholder());
         sort_images_for_display(&mut catalog.images);
         self.catalog = catalog;
@@ -771,6 +776,34 @@ fn previous_index(current: usize, len: usize) -> usize {
     }
 }
 
+fn filter_catalog_for_board(catalog: &mut Catalog, board: &DetectedBoard) {
+    let mut device_ids = BTreeSet::new();
+    if let Some(id) = board.id.as_ref().filter(|id| !id.trim().is_empty()) {
+        device_ids.insert(id.clone());
+    }
+    for device in &catalog.devices {
+        if device
+            .compatible
+            .iter()
+            .any(|entry| board.compatible.iter().any(|detected| detected == entry))
+        {
+            device_ids.insert(device.id.clone());
+        }
+    }
+
+    if device_ids.is_empty() {
+        return;
+    }
+
+    catalog.images.retain(|image| {
+        image.devices.is_empty()
+            || image
+                .devices
+                .iter()
+                .any(|device| device_ids.contains(device))
+    });
+}
+
 fn sort_images_for_display(images: &mut [ImageEntry]) {
     images.sort_by(|a, b| {
         category_rank(a.category_label())
@@ -784,8 +817,10 @@ fn sort_images_for_display(images: &mut [ImageEntry]) {
 fn category_rank(category: &str) -> u8 {
     match category {
         "Yocto" => 0,
-        "Debian" => 1,
-        "Virtualization" => 2,
+        "Edge AI" => 1,
+        "Debian" => 2,
+        "Virtualization" => 3,
+        "Buildroot" => 4,
         "Custom" => 99,
         _ => 50,
     }
@@ -1094,6 +1129,36 @@ mod tests {
             None,
         );
         assert!(app.catalog().images.iter().any(is_custom_placeholder));
+    }
+
+    #[test]
+    fn board_filter_hides_images_for_other_boards() {
+        let mut catalog = catalog();
+        catalog.images[0].devices = vec!["sk-am62p-lp".to_string()];
+        let mut other_image = catalog.images[0].clone();
+        other_image.id = "other-board-image".to_string();
+        other_image.name = "Other Board Image".to_string();
+        other_image.devices = vec!["sk-am64b".to_string()];
+        catalog.images.push(other_image);
+
+        let app = App::new(
+            catalog,
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+
+        assert!(app.catalog().images.iter().any(|image| image.id == "image"));
+        assert!(
+            !app.catalog()
+                .images
+                .iter()
+                .any(|image| image.id == "other-board-image")
+        );
     }
 
     #[test]

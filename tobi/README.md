@@ -2,7 +2,8 @@
 
 **TI Out of Box Installer**: terminal OS installer prototype for Texas Instruments Sitara starter kit evaluation modules.
 
-The first target board is **SK-AM62P-LP** using TI's Yocto machine name `am62pxx-evm`.
+The first target board was **SK-AM62P-LP** using TI's Yocto machine name `am62pxx-evm`.
+The catalog now includes SK-AM62P-LP, SK-AM62-LP, SK-AM62-SIP, SK-AM62B, SK-AM62A-LP, TMDS62LEVM, SK-AM64B, SK-AM68, and SK-AM69 entries.
 
 ## Catalog
 
@@ -16,6 +17,12 @@ Use `--manifest` to test a local or alternate catalog:
 
 ```sh
 cargo run -- --manifest sample/catalog.json --mode mock
+```
+
+Mock mode defaults to SK-AM62P-LP. To preview another board's filtered OS list:
+
+```sh
+TOBI_MOCK_BOARD=sk-am64b cargo run -- --mode mock
 ```
 
 ## Run Locally
@@ -60,7 +67,7 @@ For local testing or unusual mount layouts:
 TOBI_CUSTOM_IMAGE_ROOTS="/path/to/images:/another/root" cargo run -- --mode mock
 ```
 
-If the online catalog cannot be reached, TOBI stays open, warns the user, and still allows flashing a custom local image. Press `p` from the warning to enter a proxy URL and retry the catalog.
+If the online catalog cannot be reached, TOBI stays open, warns the user, and still allows flashing a custom local image. Press `P` from the warning to enter a proxy URL and retry the catalog.
 
 TOBI streams images directly to the target media. The full downloaded or local image does not need to fit into RAM; only the installer runtime, decompressor, and write buffers do. Before installing, TOBI checks the available RAM against an estimated working set and blocks the install if that working set cannot fit.
 

@@ -68,7 +68,7 @@ docker run --rm \
     mkdir -p "$HOME" /workspace/out/yocto
     git config --global user.email "tobi-builder@example.invalid"
     git config --global user.name "TOBI Builder"
-    ./yocto/scripts/bootstrap-am62p-tobi.sh tobi-sd-image
+    ./yocto/scripts/bootstrap-tobi-yocto.sh tobi-sd-image
     find "$TISDK_DIR/build" -path "*deploy*images*" \
       \( -name "tobi-sd-image*.wic.xz" -o -name "tobi-sd-image*.wic.bmap" -o -name "tobi-initramfs*.cpio.xz" \) \
       -exec cp -f {} /workspace/out/yocto/ \;

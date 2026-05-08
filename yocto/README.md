@@ -1,12 +1,26 @@
-# Building TOBI For SK-AM62P-LP
+# Building TOBI Board Images
 
-TI documents Processor SDK Linux AM62Px Yocto builds using `oe-layersetup` and machine `am62pxx-evm`. For SDK `12.00.00.07.04`, the non-Chromium layer config is:
+TI documents Processor SDK Linux Yocto builds using `oe-layersetup`. For the current Sitara SDK `12.00.00.07.04` board set, the non-Chromium layer config is:
 
 ```text
 configs/processor-sdk/processor-sdk-master-12.00.00.07.04-config.txt
 ```
 
 Use Ubuntu 22.04 or TI's Yocto container for repeatable builds. On Apple silicon, the included ARM64 Ubuntu Docker flow builds natively without Rosetta. TI notes that full SDK image builds can require very large disk space; `tobi-initramfs` should be much smaller, but the BSP checkout and shared state are still substantial.
+
+## Supported Board Matrix
+
+| Board | Yocto `MACHINE` | Notes |
+| --- | --- | --- |
+| SK-AM62P-LP | `am62pxx-evm` | Initial hardware target |
+| SK-AM62-LP | `am62xx-lp-evm` | AM62x low-power starter kit |
+| SK-AM62-SIP | `am62xxsip-evm` | AM62x SIP starter kit |
+| SK-AM62B | `am62xx-evm` | AM62x starter kit family |
+| SK-AM62A-LP | `am62axx-evm` | AM62A Edge AI starter kit |
+| TMDS62LEVM | `am62lxx-evm` | AM62L evaluation module |
+| SK-AM64B | `am64xx-evm` | AM64x starter kit |
+| SK-AM68 | `am68-sk` | AM68 starter kit |
+| SK-AM69 | `am69-sk` | AM69 starter kit |
 
 ## Layout
 
@@ -46,6 +60,8 @@ echo 'TOBI_PREBUILT = "/absolute/path/to/out/aarch64-linux/tobi"' >> conf/local.
 MACHINE=am62pxx-evm bitbake tobi-initramfs
 ```
 
+Set `MACHINE` to any entry from the board matrix to build that board's initramfs or SD-card image.
+
 On Apple silicon, the Rust app can be built inside native ARM64 Ubuntu Docker without Rosetta:
 
 ```sh
@@ -82,11 +98,23 @@ To build a user-flashable two-part SD-card image:
 ./yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh
 ```
 
+To build one specific board:
+
+```sh
+MACHINE=am62axx-evm ./yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh
+```
+
+To build every currently defined board image:
+
+```sh
+./yocto/scripts/build-tobi-all-sd-images-ubuntu-arm64.sh
+```
+
 This writes:
 
 ```text
-out/yocto/tobi-sd-image-am62pxx-evm.rootfs.wic.xz
-out/yocto/tobi-sd-image-am62pxx-evm.rootfs.wic.bmap
+out/yocto/tobi-sd-image-<machine>.rootfs.wic.xz
+out/yocto/tobi-sd-image-<machine>.rootfs.wic.bmap
 ```
 
 The first successful SK-AM62P-LP build produced a 24 MiB compressed initramfs, 102 MiB uncompressed:
@@ -104,7 +132,7 @@ deploy-ti/images/am62pxx-evm/tobi-initramfs-am62pxx-evm.cpio.xz
 ## Next Integration Work
 
 1. Build a target `tobi` binary through a Yocto-native Rust recipe or through a cross-build job.
-2. Add U-Boot/FIT packaging so SK-AM62P-LP boots kernel + DTB + TOBI initramfs fully into RAM from eMMC.
+2. Add U-Boot/FIT packaging so supported boards can boot kernel + DTB + TOBI initramfs fully into RAM from eMMC.
 3. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
 
 ## License
