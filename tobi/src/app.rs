@@ -1,4 +1,6 @@
 use std::collections::BTreeSet;
+#[cfg(target_os = "linux")]
+use std::fs;
 use std::process::Command;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
@@ -8,12 +10,13 @@ use crate::custom_image::{
     CustomImage, custom_placeholder, is_custom_placeholder, scan_custom_images,
 };
 use crate::device::{DeviceMode, InstallTarget, TargetKind, list_devices};
-use crate::installer::{InstallEvent, InstallRequest, RunMode, start_install};
+use crate::installer::{InstallEvent, InstallRequest, RunMode, reboot_now, start_install};
 use crate::manifest::{self, Catalog, ImageEntry};
 use crate::memory::{MemoryCheck, check_image_memory};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
+    Welcome,
     ImageSelect,
     CustomImageSelect,
     TargetSelect,
@@ -37,6 +40,7 @@ pub struct ProgressState {
 pub struct SystemStatus {
     pub time: String,
     pub ip: String,
+    pub ethernet: String,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +85,7 @@ pub struct App {
     active_image_is_custom: bool,
     progress: Option<ProgressState>,
     install_started_at: Option<Instant>,
+    success_completed_at: Option<Instant>,
     status: String,
     warning: Option<String>,
     install_rx: Option<Receiver<InstallEvent>>,
@@ -118,7 +123,7 @@ impl App {
             manifest_source,
             proxy_input: proxy_url.clone().unwrap_or_default(),
             proxy_url,
-            screen: Screen::ImageSelect,
+            screen: Screen::Welcome,
             image_index,
             custom_image_index: 0,
             target_index: 0,
@@ -127,7 +132,8 @@ impl App {
             active_image_is_custom: false,
             progress: None,
             install_started_at: None,
-            status: "Choose an operating system image.".to_string(),
+            success_completed_at: None,
+            status: "Press Enter to continue.".to_string(),
             warning,
             install_rx: None,
             runner: RunnerGame::default(),
@@ -251,6 +257,61 @@ impl App {
         self.screen != Screen::Installing
     }
 
+    pub fn can_reboot_after_complete(&self) -> bool {
+        self.screen == Screen::Complete
+            && self.run_mode == RunMode::Live
+            && self
+                .selected_target()
+                .is_some_and(|target| target.kind != TargetKind::File)
+    }
+
+    pub fn complete_auto_reboot_seconds(&self) -> Option<u64> {
+        if !self.can_reboot_after_complete() {
+            return None;
+        }
+
+        let elapsed = self.success_completed_at?.elapsed();
+        let remaining = Duration::from_secs(10).saturating_sub(elapsed);
+        if remaining.is_zero() {
+            Some(0)
+        } else {
+            Some(remaining.as_secs() + u64::from(remaining.subsec_nanos() > 0))
+        }
+    }
+
+    pub fn auto_reboot_if_due(&mut self) {
+        if self.complete_auto_reboot_seconds() == Some(0) {
+            self.reboot_or_start_over();
+        }
+    }
+
+    pub fn start_over(&mut self) {
+        self.screen = Screen::Welcome;
+        self.active_image = None;
+        self.active_image_is_custom = false;
+        self.progress = None;
+        self.install_started_at = None;
+        self.success_completed_at = None;
+        self.install_rx = None;
+        self.runner = RunnerGame::default();
+        self.status = "Press Enter to continue.".to_string();
+    }
+
+    pub fn reboot_or_start_over(&mut self) {
+        if !self.can_reboot_after_complete() {
+            self.start_over();
+            return;
+        }
+
+        self.status = "Reboot requested. If the board does not restart, reboot it manually from the serial console.".to_string();
+        if let Err(error) = reboot_now() {
+            self.screen = Screen::Error;
+            self.status = format!(
+                "Install succeeded, but TOBI could not reboot the board.\n\n{error:#}\n\nYou can reboot manually or press R to start over."
+            );
+        }
+    }
+
     pub fn next(&mut self) {
         match self.screen {
             Screen::ImageSelect => {
@@ -316,6 +377,10 @@ impl App {
 
     pub fn back(&mut self) {
         match self.screen {
+            Screen::ImageSelect => {
+                self.screen = Screen::Welcome;
+                self.status = "Press Enter to continue.".to_string();
+            }
             Screen::CustomImageSelect => {
                 self.screen = Screen::ImageSelect;
                 self.status = "Choose an operating system image.".to_string();
@@ -333,14 +398,7 @@ impl App {
                 self.screen = Screen::TargetSelect;
                 self.status = "Choose target media.".to_string();
             }
-            Screen::Complete | Screen::Error => {
-                self.screen = Screen::ImageSelect;
-                self.active_image = None;
-                self.active_image_is_custom = false;
-                self.progress = None;
-                self.install_started_at = None;
-                self.status = "Choose an operating system image.".to_string();
-            }
+            Screen::Complete | Screen::Error => self.start_over(),
             Screen::ProxyConfig => self.cancel_proxy_config(),
             _ => {}
         }
@@ -348,6 +406,10 @@ impl App {
 
     pub fn activate_selected(&mut self) {
         match self.screen {
+            Screen::Welcome => {
+                self.screen = Screen::ImageSelect;
+                self.status = "Choose an operating system image.".to_string();
+            }
             Screen::ImageSelect => {
                 let Some(image) = self.selected_catalog_image().cloned() else {
                     self.status = "No image selected.".to_string();
@@ -367,7 +429,7 @@ impl App {
             Screen::CustomImageSelect => {
                 let Some(custom_image) = self.selected_custom_image().cloned() else {
                     self.status =
-                        "No custom images found. Attach media and press r to rescan.".to_string();
+                        "No custom images found. Attach media and press R to rescan.".to_string();
                     return;
                 };
                 self.active_image = Some(custom_image.into_image_entry());
@@ -380,7 +442,8 @@ impl App {
                 self.status = "Confirm destructive write.".to_string();
             }
             Screen::Confirm => self.start_install(),
-            Screen::Complete | Screen::Error => self.back(),
+            Screen::Complete => self.reboot_or_start_over(),
+            Screen::Error => self.start_over(),
             Screen::ProxyConfig => self.apply_proxy_config(),
             _ => {}
         }
@@ -465,7 +528,7 @@ impl App {
                     .custom_image_index
                     .min(self.custom_images.len().saturating_sub(1));
                 self.status = if self.custom_images.is_empty() {
-                    "No custom images found. Attach media and press r to rescan.".to_string()
+                    "No custom images found. Attach media and press R to rescan.".to_string()
                 } else {
                     format!("Found {} custom image(s).", self.custom_images.len())
                 };
@@ -506,11 +569,13 @@ impl App {
                 InstallEvent::Complete(message) => {
                     self.status = message;
                     self.screen = Screen::Complete;
+                    self.success_completed_at = Some(Instant::now());
                     keep_rx = false;
                 }
                 InstallEvent::Failed(message) => {
                     self.status = message;
                     self.screen = Screen::Error;
+                    self.success_completed_at = None;
                     keep_rx = false;
                 }
             }
@@ -727,10 +792,13 @@ fn category_rank(category: &str) -> u8 {
 }
 
 fn read_system_status() -> SystemStatus {
+    let ip = read_primary_ipv4().unwrap_or_else(|| "no IPv4".to_string());
+    let ethernet = read_ethernet_status(&ip);
     SystemStatus {
         time: command_output("date", &["-u", "+%Y-%m-%d %H:%M:%S UTC"])
             .unwrap_or_else(|| "time unavailable".to_string()),
-        ip: read_primary_ipv4().unwrap_or_else(|| "no IPv4".to_string()),
+        ip,
+        ethernet,
     }
 }
 
@@ -744,6 +812,10 @@ fn command_output(command: &str, args: &[&str]) -> Option<String> {
 }
 
 fn read_primary_ipv4() -> Option<String> {
+    read_primary_ipv4_from_ip().or_else(read_primary_ipv4_from_ifconfig)
+}
+
+fn read_primary_ipv4_from_ip() -> Option<String> {
     let output = Command::new("ip")
         .args(["-4", "-o", "addr", "show", "scope", "global"])
         .output()
@@ -761,12 +833,221 @@ fn read_primary_ipv4() -> Option<String> {
     })
 }
 
+#[cfg(target_os = "linux")]
+fn read_ipv4_for_iface(iface: &str) -> Option<String> {
+    let output = Command::new("ip")
+        .args(["-4", "-o", "addr", "show", "dev", iface, "scope", "global"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    text.lines().find_map(|line| {
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        let addr = fields.get(3)?.split('/').next()?;
+        Some(addr.to_string())
+    })
+}
+
+fn read_primary_ipv4_from_ifconfig() -> Option<String> {
+    let output = Command::new("ifconfig").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut iface = None;
+    for line in text.lines() {
+        if !line.starts_with(char::is_whitespace) && line.contains(':') {
+            iface = line.split(':').next().map(|value| value.to_string());
+            continue;
+        }
+
+        let Some(current_iface) = iface.as_deref() else {
+            continue;
+        };
+        if current_iface == "lo" || current_iface == "lo0" {
+            continue;
+        }
+
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        if fields.first() == Some(&"inet") {
+            let Some(addr) = fields.get(1) else {
+                continue;
+            };
+            if !addr.starts_with("127.") {
+                return Some(format!("{current_iface} {addr}"));
+            }
+        }
+    }
+
+    None
+}
+
+fn read_ethernet_status(primary_ip: &str) -> String {
+    read_linux_ethernet_status()
+        .or_else(read_macos_ethernet_status)
+        .unwrap_or_else(|| {
+            if primary_ip == "no IPv4" {
+                "not connected".to_string()
+            } else {
+                format!("network online ({primary_ip})")
+            }
+        })
+}
+
+#[cfg(target_os = "linux")]
+fn read_linux_ethernet_status() -> Option<String> {
+    let entries = fs::read_dir("/sys/class/net").ok()?;
+    let mut ethernet_seen = false;
+
+    for entry in entries.filter_map(Result::ok) {
+        let iface = entry.file_name().to_string_lossy().into_owned();
+        if !is_likely_ethernet_iface(&iface) {
+            continue;
+        }
+
+        let path = entry.path();
+        let interface_type = fs::read_to_string(path.join("type")).ok();
+        if interface_type.as_deref().map(str::trim) != Some("1") {
+            continue;
+        }
+        ethernet_seen = true;
+
+        let carrier = fs::read_to_string(path.join("carrier")).ok();
+        let operstate = fs::read_to_string(path.join("operstate")).ok();
+        let link_up = carrier.as_deref().map(str::trim) == Some("1")
+            || operstate.as_deref().map(str::trim) == Some("up");
+        if !link_up {
+            continue;
+        }
+
+        if let Some(addr) = read_ipv4_for_iface(&iface) {
+            return Some(format!("connected ({iface} {addr})"));
+        }
+        return Some(format!("connected ({iface}, waiting for DHCP)"));
+    }
+
+    ethernet_seen.then(|| "not connected".to_string())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn read_linux_ethernet_status() -> Option<String> {
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn is_likely_ethernet_iface(iface: &str) -> bool {
+    iface != "lo"
+        && !iface.starts_with("wl")
+        && !iface.starts_with("docker")
+        && !iface.starts_with("veth")
+        && !iface.starts_with("br-")
+        && !iface.starts_with("tun")
+        && !iface.starts_with("tap")
+}
+
+#[cfg(target_os = "macos")]
+fn read_macos_ethernet_status() -> Option<String> {
+    let ports = command_output("networksetup", &["-listallhardwareports"])?;
+    let mut ethernet_seen = false;
+
+    for block in ports.split("\n\n") {
+        let is_ethernet = block
+            .lines()
+            .find_map(|line| line.strip_prefix("Hardware Port: "))
+            .map(|port| port.contains("Ethernet"))
+            .unwrap_or(false);
+        if !is_ethernet {
+            continue;
+        }
+
+        let Some(iface) = block
+            .lines()
+            .find_map(|line| line.strip_prefix("Device: "))
+            .map(str::trim)
+        else {
+            continue;
+        };
+        ethernet_seen = true;
+
+        if let Some(status) = read_macos_iface_status(iface) {
+            return Some(status);
+        }
+    }
+
+    ethernet_seen.then(|| "not connected".to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn read_macos_ethernet_status() -> Option<String> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn read_macos_iface_status(iface: &str) -> Option<String> {
+    let text = command_output("ifconfig", &[iface])?;
+    let active = text
+        .lines()
+        .any(|line| line.trim_start() == "status: active");
+    if !active {
+        return None;
+    }
+
+    let addr = text.lines().find_map(|line| {
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        if fields.first() == Some(&"inet") {
+            fields.get(1).copied()
+        } else {
+            None
+        }
+    });
+
+    Some(match addr {
+        Some(addr) => format!("connected ({iface} {addr})"),
+        None => format!("connected ({iface}, waiting for DHCP)"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::board::{BoardSource, DetectedBoard};
     use crate::device::{InstallTarget, TargetKind};
     use crate::manifest::{Catalog, ImageEntry, ImageFormat};
+
+    #[test]
+    fn starts_on_welcome() {
+        let app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        assert_eq!(app.screen(), Screen::Welcome);
+    }
+
+    #[test]
+    fn enter_advances_from_welcome_to_image_list() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        app.activate_selected();
+        assert_eq!(app.screen(), Screen::ImageSelect);
+    }
 
     #[test]
     fn enter_advances_from_image_to_target() {
@@ -780,6 +1061,7 @@ mod tests {
             None,
             None,
         );
+        app.activate_selected();
         app.activate_selected();
         assert_eq!(app.screen(), Screen::TargetSelect);
     }
@@ -812,6 +1094,55 @@ mod tests {
             None,
         );
         assert!(app.catalog().images.iter().any(is_custom_placeholder));
+    }
+
+    #[test]
+    fn complete_screen_reboots_only_live_block_targets() {
+        let mut live_app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Live,
+            true,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        live_app.screen = Screen::Complete;
+        assert!(live_app.can_reboot_after_complete());
+
+        let mut mock_app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        mock_app.screen = Screen::Complete;
+        assert!(!mock_app.can_reboot_after_complete());
+    }
+
+    #[test]
+    fn live_complete_screen_counts_down_to_reboot() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Live,
+            true,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        app.screen = Screen::Complete;
+        app.success_completed_at = Some(Instant::now());
+        assert!(matches!(app.complete_auto_reboot_seconds(), Some(1..=10)));
+
+        app.success_completed_at = Some(Instant::now() - Duration::from_secs(10));
+        assert_eq!(app.complete_auto_reboot_seconds(), Some(0));
     }
 
     fn catalog() -> Catalog {

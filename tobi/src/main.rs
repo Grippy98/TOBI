@@ -72,7 +72,7 @@ fn main() -> anyhow::Result<()> {
         Err(error) if manifest::is_remote_source(&args.manifest) => (
             manifest::fallback_catalog(),
             Some(format!(
-                "Could not fetch the online OS catalog. You can still flash a custom local image from attached media. Press p to configure a proxy and retry, or Enter to continue.\n\n{error:#}"
+                "Could not fetch the online OS catalog. You can still flash a custom local image from attached media. Press P to configure a proxy and retry, or Enter to continue.\n\n{error:#}"
             )),
         ),
         Err(error) => {
@@ -130,6 +130,7 @@ fn run_app(
         app.poll_install_events();
         app.tick_runner();
         app.refresh_system_status_if_due();
+        app.auto_reboot_if_due();
         terminal.draw(|frame| ui::render(frame, &app))?;
 
         if event::poll(Duration::from_millis(80))? {
@@ -141,13 +142,15 @@ fn run_app(
             }
 
             match key.code {
-                KeyCode::Char('q') | KeyCode::Esc if app.can_quit() => return Ok(()),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc if app.can_quit() => {
+                    return Ok(());
+                }
                 KeyCode::Char('c') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                     return Ok(());
                 }
                 _ if app.has_warning() => match key.code {
                     KeyCode::Enter | KeyCode::Esc => app.dismiss_warning(),
-                    KeyCode::Char('p') => app.start_proxy_config(),
+                    KeyCode::Char('p') | KeyCode::Char('P') => app.start_proxy_config(),
                     _ => {}
                 },
                 _ if app.screen() == Screen::ProxyConfig => match key.code {
@@ -158,18 +161,25 @@ fn run_app(
                     _ => {}
                 },
                 _ if app.screen() == Screen::Installing => match key.code {
-                    KeyCode::Char(' ') | KeyCode::Up | KeyCode::Char('w') => {
+                    KeyCode::Char(' ') | KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('W') => {
                         app.runner_jump_or_restart();
                     }
                     _ => {}
                 },
+                _ if matches!(app.screen(), Screen::Complete | Screen::Error) => match key.code {
+                    KeyCode::Enter => app.activate_selected(),
+                    KeyCode::Char('r') | KeyCode::Char('R') => app.start_over(),
+                    _ => {}
+                },
                 KeyCode::Right if app.screen() == Screen::TargetSelect => app.expand_target(),
                 KeyCode::Left if app.screen() == Screen::TargetSelect => app.collapse_target(),
-                KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                KeyCode::Down | KeyCode::Char('j') => app.next(),
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.previous(),
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.next(),
                 KeyCode::Enter => app.activate_selected(),
                 KeyCode::Backspace => app.back(),
-                KeyCode::Char('r') if app.screen() != Screen::Installing => app.refresh_devices(),
+                KeyCode::Char('r') | KeyCode::Char('R') if app.screen() != Screen::Installing => {
+                    app.refresh_devices()
+                }
                 _ => {}
             }
         }

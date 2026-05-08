@@ -145,11 +145,25 @@ fn live_targets(target: Option<&Path>) -> anyhow::Result<Vec<InstallTarget>> {
 fn target_from_path(path: &Path) -> anyhow::Result<InstallTarget> {
     let metadata = fs::metadata(path)
         .with_context(|| format!("target {} is not accessible", path.display()))?;
-    let kind = if metadata.is_file() {
-        TargetKind::File
-    } else {
-        infer_kind(path)
-    };
+    if metadata.is_file() {
+        return Ok(InstallTarget {
+            id: path.display().to_string(),
+            name: "File target".to_string(),
+            path: path.to_path_buf(),
+            size_bytes: Some(metadata.len()),
+            kind: TargetKind::File,
+            removable: false,
+            partitions: Vec::new(),
+            warning: Some("live target; writing requires --allow-write".to_string()),
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    if let Some(target) = linux_target_from_path(path) {
+        return Ok(target);
+    }
+
+    let kind = infer_kind(path);
 
     Ok(InstallTarget {
         id: path.display().to_string(),
@@ -162,11 +176,7 @@ fn target_from_path(path: &Path) -> anyhow::Result<InstallTarget> {
             TargetKind::Unknown => "Block target".to_string(),
         },
         path: path.to_path_buf(),
-        size_bytes: if metadata.is_file() {
-            Some(metadata.len())
-        } else {
-            None
-        },
+        size_bytes: None,
         kind,
         removable: false,
         partitions: Vec::new(),
@@ -185,28 +195,11 @@ fn scan_linux_block_devices() -> anyhow::Result<Vec<InstallTarget>> {
         }
 
         let sys_path = entry.path();
-        let removable = fs::read_to_string(sys_path.join("removable"))
-            .ok()
-            .map(|value| value.trim() == "1")
-            .unwrap_or(false);
-        let size_bytes = fs::read_to_string(sys_path.join("size"))
-            .ok()
-            .and_then(|value| value.trim().parse::<u64>().ok())
-            .map(|sectors| sectors.saturating_mul(512));
-        let path = PathBuf::from(format!("/dev/{name}"));
-        let kind = infer_linux_kind(&name, removable);
-        let partitions = linux_partitions(&sys_path);
-
-        targets.push(InstallTarget {
-            id: name.clone(),
-            name: linux_device_model(&sys_path).unwrap_or_else(|| name.clone()),
-            path,
-            size_bytes,
-            kind,
-            removable,
-            partitions,
-            warning: Some("live target; writing requires --allow-write".to_string()),
-        });
+        targets.push(linux_target_from_sys_block(
+            &name,
+            PathBuf::from(format!("/dev/{name}")),
+            &sys_path,
+        ));
     }
 
     if targets.is_empty() {
@@ -222,11 +215,106 @@ fn scan_linux_block_devices() -> anyhow::Result<Vec<InstallTarget>> {
 }
 
 #[cfg(target_os = "linux")]
-fn linux_device_model(sys_path: &Path) -> Option<String> {
-    fs::read_to_string(sys_path.join("device/model"))
+fn linux_target_from_path(path: &Path) -> Option<InstallTarget> {
+    let path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let name = path.file_name()?.to_str()?.to_string();
+    if !is_visible_root_block_device(&name) {
+        return None;
+    }
+
+    let sys_path = PathBuf::from("/sys/block").join(&name);
+    if !sys_path.exists() {
+        return None;
+    }
+
+    Some(linux_target_from_sys_block(&name, path, &sys_path))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_target_from_sys_block(name: &str, path: PathBuf, sys_path: &Path) -> InstallTarget {
+    let sys_removable = linux_removable(sys_path);
+    let mmc_type = linux_mmc_type(sys_path);
+    let kind = infer_linux_kind(name, sys_removable, mmc_type.as_deref());
+    let removable = sys_removable || kind == TargetKind::Sd;
+
+    InstallTarget {
+        id: name.to_string(),
+        name: linux_device_label(sys_path, name, kind),
+        path,
+        size_bytes: linux_block_size(sys_path),
+        kind,
+        removable,
+        partitions: linux_partitions(sys_path),
+        warning: Some("live target; writing requires --allow-write".to_string()),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn linux_read_trimmed(path: impl AsRef<Path>) -> Option<String> {
+    fs::read_to_string(path)
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_removable(sys_path: &Path) -> bool {
+    linux_read_trimmed(sys_path.join("removable"))
+        .map(|value| value == "1")
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn linux_block_size(sys_path: &Path) -> Option<u64> {
+    linux_read_trimmed(sys_path.join("size"))
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(|sectors| sectors.saturating_mul(512))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_mmc_type(sys_path: &Path) -> Option<String> {
+    linux_read_trimmed(sys_path.join("device/type"))
+        .or_else(|| {
+            fs::read_to_string(sys_path.join("device/uevent"))
+                .ok()?
+                .lines()
+                .find_map(|line| line.strip_prefix("MMC_TYPE=").map(str::to_string))
+        })
+        .map(|value| value.to_ascii_uppercase())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_device_model(sys_path: &Path) -> Option<String> {
+    linux_read_trimmed(sys_path.join("device/model"))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_mmc_name(sys_path: &Path) -> Option<String> {
+    linux_read_trimmed(sys_path.join("device/name"))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_device_label(sys_path: &Path, fallback_name: &str, kind: TargetKind) -> String {
+    if let Some(model) = linux_device_model(sys_path) {
+        return model;
+    }
+
+    let kind_label = match kind {
+        TargetKind::Emmc => "eMMC",
+        TargetKind::Sd => "SD card",
+        TargetKind::Usb => "USB/storage",
+        TargetKind::Nvme => "NVMe",
+        TargetKind::File => "file",
+        TargetKind::Unknown => "storage",
+    };
+
+    if matches!(kind, TargetKind::Emmc | TargetKind::Sd) {
+        if let Some(card_name) = linux_mmc_name(sys_path) {
+            return format!("{kind_label} {card_name}");
+        }
+    }
+
+    format!("{kind_label} {fallback_name}")
 }
 
 #[cfg(target_os = "linux")]
@@ -259,6 +347,7 @@ fn linux_partitions(sys_path: &Path) -> Vec<TargetPartition> {
     partitions
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn is_visible_root_block_device(name: &str) -> bool {
     if name.starts_with("loop")
         || name.starts_with("ram")
@@ -289,8 +378,14 @@ fn infer_kind(path: &Path) -> TargetKind {
     }
 }
 
-fn infer_linux_kind(name: &str, removable: bool) -> TargetKind {
+#[cfg(any(target_os = "linux", test))]
+fn infer_linux_kind(name: &str, removable: bool, mmc_type: Option<&str>) -> TargetKind {
     if name.starts_with("mmcblk") {
+        match mmc_type.map(str::to_ascii_uppercase).as_deref() {
+            Some("SD" | "SDIO") => return TargetKind::Sd,
+            Some("MMC") => return TargetKind::Emmc,
+            _ => {}
+        }
         if removable {
             TargetKind::Sd
         } else {
@@ -358,7 +453,19 @@ mod tests {
 
     #[test]
     fn classifies_removable_mmc_as_sd() {
-        assert_eq!(infer_linux_kind("mmcblk0", true), TargetKind::Sd);
-        assert_eq!(infer_linux_kind("mmcblk1", false), TargetKind::Emmc);
+        assert_eq!(infer_linux_kind("mmcblk0", true, None), TargetKind::Sd);
+        assert_eq!(infer_linux_kind("mmcblk1", false, None), TargetKind::Emmc);
+    }
+
+    #[test]
+    fn classifies_mmc_by_card_type_before_numbering() {
+        assert_eq!(
+            infer_linux_kind("mmcblk0", false, Some("SD")),
+            TargetKind::Sd
+        );
+        assert_eq!(
+            infer_linux_kind("mmcblk1", true, Some("MMC")),
+            TargetKind::Emmc
+        );
     }
 }

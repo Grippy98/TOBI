@@ -94,8 +94,8 @@ fn run_mock_install(request: &InstallRequest, tx: &Sender<InstallEvent>) -> anyh
     }
 
     tx.send(InstallEvent::Complete(format!(
-        "Mock install complete. {} would now reboot into {}.",
-        request.target.name, request.image.name
+        "Install succeeded.\n\nImage: {}\nTarget: {}\n\nMock mode did not write any storage.",
+        request.image.name, request.target.name
     )))?;
     Ok(())
 }
@@ -128,15 +128,7 @@ fn run_live_install(request: &InstallRequest, tx: &Sender<InstallEvent>) -> anyh
 
         match write_image_once(request, tx, attempt, attempts) {
             Ok(written) => {
-                if request.reboot_after_install {
-                    reboot_after_successful_install(written, request, tx)?;
-                } else {
-                    tx.send(InstallEvent::Complete(format!(
-                        "Install complete. Wrote {} bytes to {}.",
-                        written,
-                        request.target.path.display()
-                    )))?;
-                }
+                complete_successful_live_install(written, request, tx)?;
                 return Ok(());
             }
             Err(error) if attempt < attempts && is_retryable_download_error(&error) => {
@@ -230,22 +222,33 @@ fn write_image_once(
     Ok(written)
 }
 
-fn reboot_after_successful_install(
+fn complete_successful_live_install(
     written: u64,
     request: &InstallRequest,
     tx: &Sender<InstallEvent>,
 ) -> anyhow::Result<()> {
     tx.send(InstallEvent::Phase(format!(
-        "Install complete. Wrote {} bytes to {}. Syncing before reboot.",
+        "Install complete. Wrote {} bytes to {}. Syncing target media.",
         written,
         request.target.path.display()
     )))?;
     let _ = Command::new("sync").status();
 
-    tx.send(InstallEvent::Phase(
-        "Rebooting now into the installed image.".to_string(),
-    ))?;
-    thread::sleep(Duration::from_secs(2));
+    let reboot_line = if request.reboot_after_install {
+        "\n\nReady to reboot into the installed image."
+    } else {
+        ""
+    };
+    tx.send(InstallEvent::Complete(format!(
+        "Install succeeded.\n\nImage: {}\nTarget: {}\nWrote: {} bytes{reboot_line}",
+        request.image.name,
+        request.target.path.display(),
+        written
+    )))?;
+    Ok(())
+}
+
+pub fn reboot_now() -> anyhow::Result<()> {
     force_reboot().context("failed to reboot after successful install")
 }
 

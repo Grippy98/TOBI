@@ -19,6 +19,10 @@ const TI_WHITE: Color = Color::Rgb(245, 247, 250);
 pub fn render(frame: &mut Frame, app: &App) {
     let root = frame.area();
     frame.render_widget(Clear, root);
+    frame.render_widget(
+        Block::default().style(Style::default().fg(TI_WHITE).bg(Color::Black)),
+        root,
+    );
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -31,13 +35,14 @@ pub fn render(frame: &mut Frame, app: &App) {
 
     render_header(frame, app, chunks[0]);
     match app.screen() {
+        Screen::Welcome => render_welcome(frame, app, chunks[1]),
         Screen::ImageSelect => render_image_select(frame, app, chunks[1]),
         Screen::CustomImageSelect => render_custom_image_select(frame, app, chunks[1]),
         Screen::TargetSelect => render_target_select(frame, app, chunks[1]),
         Screen::Confirm => render_confirm(frame, app, chunks[1]),
         Screen::Installing => render_installing(frame, app, chunks[1]),
-        Screen::Complete => render_result(frame, app, chunks[1], TI_TEAL, "Complete"),
-        Screen::Error => render_result(frame, app, chunks[1], TI_RED, "Install Failed"),
+        Screen::Complete => render_complete(frame, app, chunks[1]),
+        Screen::Error => render_error(frame, app, chunks[1]),
         Screen::ProxyConfig => render_proxy_config(frame, app, chunks[1]),
     }
     render_footer(frame, app, chunks[2]);
@@ -99,6 +104,55 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, area);
 }
 
+fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
+    let popup = centered_rect(74, 66, area);
+    frame.render_widget(Clear, popup);
+
+    let lines = vec![
+        Line::from(Span::styled(
+            "Welcome to TOBI",
+            Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(
+            "Texas Instruments Out of Box Installer",
+            Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from("Pick and flash a fresh OS image from the internet,"),
+        Line::from("or install a compatible local image from attached media."),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Board: ", label_style()),
+            Span::styled(
+                app.board().name.clone(),
+                Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("Ethernet: ", label_style()),
+            Span::raw(app.system_status().ethernet.clone()),
+        ]),
+        Line::from("Please plug in an Ethernet cable and keyboard to proceed."),
+        Line::from("TOBI can be used with an external display or from the serial console."),
+        Line::from(""),
+        Line::from("If no network is available, plug in a FAT32-formatted USB drive"),
+        Line::from("containing compatible image files and flash that way."),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Press Enter to continue.",
+            Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
+        )),
+    ];
+
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(panel_block(" Welcome "))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false }),
+        popup,
+    );
+}
+
 fn render_image_select(frame: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -144,7 +198,7 @@ fn render_custom_image_select(frame: &mut Frame, app: &App, area: Rect) {
                 "No custom images found",
                 Style::default().add_modifier(Modifier::BOLD),
             )),
-            Line::from("Attach media and press r to rescan."),
+            Line::from("Attach media and press R to rescan."),
         ])]
     } else {
         app.custom_images()
@@ -575,7 +629,7 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
             if app.runner().crashed() {
                 "Crash - jump to restart"
             } else {
-                "Space/Up/w jump"
+                "Space/Up/W jump"
             },
             Style::default().fg(if app.runner().crashed() {
                 TI_RED
@@ -647,7 +701,44 @@ fn draw_sprite(grid: &mut [Vec<char>], x: i16, y: usize, sprite: &[&str]) {
     }
 }
 
-fn render_result(frame: &mut Frame, app: &App, area: Rect, color: Color, title: &str) {
+fn render_complete(frame: &mut Frame, app: &App, area: Rect) {
+    let prompt = if let Some(seconds) = app.complete_auto_reboot_seconds() {
+        vec![
+            Line::from(Span::styled(
+                format!("Auto-rebooting in {seconds} seconds."),
+                Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("Press Enter to reboot now."),
+            Line::from("Press R to start over."),
+        ]
+    } else {
+        vec![Line::from("Press Enter or R to start over.")]
+    };
+    render_result(frame, app, area, TI_TEAL, "Success", prompt);
+}
+
+fn render_error(frame: &mut Frame, app: &App, area: Rect) {
+    render_result(
+        frame,
+        app,
+        area,
+        TI_RED,
+        "Install Failed",
+        vec![
+            Line::from("Press Enter or R to start over."),
+            Line::from("Press Q to quit."),
+        ],
+    );
+}
+
+fn render_result(
+    frame: &mut Frame,
+    app: &App,
+    area: Rect,
+    color: Color,
+    title: &str,
+    prompt: Vec<Line<'static>>,
+) {
     let popup = centered_rect(72, 45, area);
     frame.render_widget(Clear, popup);
     let mut lines = vec![
@@ -663,9 +754,7 @@ fn render_result(frame: &mut Frame, app: &App, area: Rect, color: Color, title: 
             .map(|line| Line::from(line.to_string())),
     );
     lines.push(Line::from(""));
-    lines.push(Line::from(
-        "Press Enter to return to image selection or q to quit.",
-    ));
+    lines.extend(prompt);
 
     frame.render_widget(
         Paragraph::new(lines)
@@ -678,17 +767,28 @@ fn render_result(frame: &mut Frame, app: &App, area: Rect, color: Color, title: 
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     let keys = match app.screen() {
-        Screen::Installing => "installing | Space/Up/w jump | Ctrl-C quit",
-        Screen::ImageSelect => "Up/Down choose image | Enter continue | r refresh targets | q quit",
+        Screen::Welcome => "Enter continue | Q quit".to_string(),
+        Screen::Installing => "installing | Space/Up/W jump | Ctrl-C quit".to_string(),
+        Screen::ImageSelect => {
+            "Up/Down choose image | Enter continue | R refresh targets | Q quit".to_string()
+        }
         Screen::CustomImageSelect => {
-            "Up/Down choose image | Enter continue | Backspace back | r rescan media | q quit"
+            "Up/Down choose image | Enter continue | Backspace back | R rescan media | Q quit"
+                .to_string()
         }
-        Screen::ProxyConfig => "type proxy URL | Enter retry catalog | Esc continue offline",
+        Screen::ProxyConfig => {
+            "type proxy URL | Enter retry catalog | Esc continue offline".to_string()
+        }
         Screen::TargetSelect => {
-            "Up/Down choose target | Left/Right hide/show partitions | Enter continue | r refresh | q quit"
+            "Up/Down choose target | Left/Right hide/show partitions | Enter continue | R refresh | Q quit".to_string()
         }
-        Screen::Confirm => "Enter install | Backspace back | q quit",
-        Screen::Complete | Screen::Error => "Enter restart | q quit",
+        Screen::Confirm => "Enter install | Backspace back | Q quit".to_string(),
+        Screen::Complete if app.can_reboot_after_complete() => match app.complete_auto_reboot_seconds() {
+            Some(seconds) => format!("auto reboot in {seconds}s | Enter reboot | R start over | Q quit"),
+            None => "Enter reboot | R start over | Q quit".to_string(),
+        },
+        Screen::Complete => "Enter/R start over | Q quit".to_string(),
+        Screen::Error => "Enter/R start over | Q quit".to_string(),
     };
     frame.render_widget(
         Paragraph::new(Line::from(keys))
@@ -901,7 +1001,7 @@ fn render_warning(frame: &mut Frame, app: &App, area: Rect) {
     lines.extend(warning.lines().map(|line| Line::from(line.to_string())));
     lines.push(Line::from(""));
     lines.push(Line::from("Enter: continue with local/custom images"));
-    lines.push(Line::from("p: configure proxy and retry online catalog"));
+    lines.push(Line::from("P: configure proxy and retry online catalog"));
 
     frame.render_widget(
         Paragraph::new(lines)
