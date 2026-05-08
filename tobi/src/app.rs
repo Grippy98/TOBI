@@ -781,13 +781,15 @@ fn filter_catalog_for_board(catalog: &mut Catalog, board: &DetectedBoard) {
     if let Some(id) = board.id.as_ref().filter(|id| !id.trim().is_empty()) {
         device_ids.insert(id.clone());
     }
-    for device in &catalog.devices {
-        if device
-            .compatible
-            .iter()
-            .any(|entry| board.compatible.iter().any(|detected| detected == entry))
-        {
-            device_ids.insert(device.id.clone());
+    if device_ids.is_empty() {
+        for device in &catalog.devices {
+            if device
+                .compatible
+                .iter()
+                .any(|entry| board.compatible.iter().any(|detected| detected == entry))
+            {
+                device_ids.insert(device.id.clone());
+            }
         }
     }
 
@@ -1159,6 +1161,53 @@ mod tests {
                 .images
                 .iter()
                 .any(|image| image.id == "other-board-image")
+        );
+    }
+
+    #[test]
+    fn board_filter_uses_detected_id_before_generic_compatible_aliases() {
+        let mut catalog = catalog();
+        catalog.devices = vec![
+            crate::manifest::DeviceEntry {
+                id: "sk-am64b".to_string(),
+                name: "SK-AM64B".to_string(),
+                compatible: vec!["ti,am642-sk".to_string(), "ti,am642".to_string()],
+            },
+            crate::manifest::DeviceEntry {
+                id: "tmds64evm".to_string(),
+                name: "TMDS64EVM".to_string(),
+                compatible: vec!["ti,am642-evm".to_string(), "ti,am642".to_string()],
+            },
+        ];
+        catalog.images[0].devices = vec!["tmds64evm".to_string()];
+        let mut sk_only = catalog.images[0].clone();
+        sk_only.id = "sk-am64b-only".to_string();
+        sk_only.name = "SK-AM64B Only".to_string();
+        sk_only.devices = vec!["sk-am64b".to_string()];
+        catalog.images.push(sk_only);
+
+        let app = App::new(
+            catalog,
+            DetectedBoard {
+                id: Some("tmds64evm".to_string()),
+                name: "TMDS64EVM".to_string(),
+                compatible: vec!["ti,am642-evm".to_string(), "ti,am642".to_string()],
+                source: BoardSource::DeviceTree,
+            },
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+
+        assert!(app.catalog().images.iter().any(|image| image.id == "image"));
+        assert!(
+            !app.catalog()
+                .images
+                .iter()
+                .any(|image| image.id == "sk-am64b-only")
         );
     }
 

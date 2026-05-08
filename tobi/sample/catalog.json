@@ -23,6 +23,11 @@
       "compatible": ["ti,am625-sk"]
     },
     {
+      "id": "beagleplay",
+      "name": "BeaglePlay",
+      "compatible": ["beagle,am625-beagleplay"]
+    },
+    {
       "id": "sk-am62a-lp",
       "name": "SK-AM62A-LP",
       "compatible": ["ti,am62a7-sk", "ti,am62a7"]
@@ -36,6 +41,11 @@
       "id": "sk-am64b",
       "name": "SK-AM64B",
       "compatible": ["ti,am642-sk", "ti,am642"]
+    },
+    {
+      "id": "tmds64evm",
+      "name": "TMDS64EVM",
+      "compatible": ["ti,am642-evm", "ti,am642"]
     },
     {
       "id": "sk-am68",
@@ -161,6 +171,20 @@
       "format": "raw",
       "image_download_size": 335544832,
       "extract_size": 335544832
+    },
+    {
+      "id": "tisdk-default-beagleplay-ti-12.00.00.07.04",
+      "name": "TI Processor SDK Linux BeaglePlay",
+      "description": "Default Yocto SD-card image for PROCESSOR-SDK-LINUX-AM62X on BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Yocto",
+      "recommended": true,
+      "version": "12.00.00.07.04",
+      "release_date": "2026-04-14",
+      "channel": "stable",
+      "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-default-image-beagleplay-ti-12.00.00.07.04.rootfs.wic.xz",
+      "format": "wic.xz",
+      "image_download_size": 1250296148
     },
     {
       "id": "tisdk-default-am62xx-lp-12.00.00.07.04",
@@ -306,8 +330,8 @@
     {
       "id": "tisdk-default-am64xx-12.00.00.07.04",
       "name": "TI Processor SDK Linux AM64x",
-      "description": "Default Yocto SD-card image for PROCESSOR-SDK-LINUX-AM64X on SK-AM64B.",
-      "devices": ["sk-am64b"],
+      "description": "Default Yocto SD-card image for PROCESSOR-SDK-LINUX-AM64X on SK-AM64B and TMDS64EVM.",
+      "devices": ["sk-am64b", "tmds64evm"],
       "category": "Yocto",
       "recommended": true,
       "version": "12.00.00.07.04",
@@ -628,6 +652,141 @@
       "format": "img.xz",
       "image_download_sha256": "ff7ce08c4e97b6ffaf8592866c6d29a3ea5fd50fbb8e8937b7bb11f92df38b5f",
       "image_download_size": 544372404
+    },
+    {
+      "id": "armbian-trixie-minimal-beagleplay-26.2.1",
+      "name": "Armbian Trixie Minimal BeaglePlay",
+      "description": "Community Armbian Trixie minimal image for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-20",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Trixie_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "acddfa478c1d6b854ec798efd91515624f39acaa57ef5c43229e7ad72ceda8b2",
+      "image_download_size": 338750208
+    },
+    {
+      "id": "armbian-trixie-omv-beagleplay-26.2.1",
+      "name": "Armbian Trixie OpenMediaVault BeaglePlay",
+      "description": "Community Armbian Trixie minimal image with OpenMediaVault tooling for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Trixie_vendor_minimal-omv",
+      "format": "img.xz",
+      "image_download_sha256": "079fbe148f9dcfe52d49b69acdbda81a4263ef268773b65f5c0cb41387551285",
+      "image_download_size": 457639956
+    },
+    {
+      "id": "armbian-trixie-homeassistant-beagleplay-26.2.1",
+      "name": "Armbian Trixie Home Assistant BeaglePlay",
+      "description": "Community Armbian Trixie image with Home Assistant tooling for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Trixie_vendor_server-homeassistant",
+      "format": "img.xz",
+      "image_download_sha256": "1678c7d45061ec4ac55298398197fc4748d9855e0aabdd58f169dfb44982ee46",
+      "image_download_size": 562577332
+    },
+    {
+      "id": "armbian-trixie-openhab-beagleplay-26.2.1",
+      "name": "Armbian Trixie openHAB BeaglePlay",
+      "description": "Community Armbian Trixie image with openHAB tooling for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Trixie_vendor_server-openhab",
+      "format": "img.xz",
+      "image_download_sha256": "ab9c29aff0fd4142b72a147fa08a2ddbb47b71091562103b5e27f08242606be6",
+      "image_download_size": 1264368856
+    },
+    {
+      "id": "armbian-noble-gnome-beagleplay-26.2.1",
+      "name": "Armbian Noble GNOME BeaglePlay",
+      "description": "Community Armbian Noble GNOME desktop image for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-20",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Noble_vendor_gnome",
+      "format": "img.xz",
+      "image_download_sha256": "6211784c642cb40ed75b213dd25072e5c7e882cad0907d02ac21ba34e75faa18",
+      "image_download_size": 1404987284
+    },
+    {
+      "id": "armbian-noble-kde-neon-beagleplay-26.2.1",
+      "name": "Armbian Noble KDE Neon BeaglePlay",
+      "description": "Community Armbian Noble KDE Neon desktop image for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-20",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Noble_vendor_kde-neon",
+      "format": "img.xz",
+      "image_download_sha256": "87dd19d18c262b5bc861e309ff46e62885458c2a7cb270f9feaec27f5defd288",
+      "image_download_size": 1478064856
+    },
+    {
+      "id": "armbian-noble-minimal-beagleplay-26.2.1",
+      "name": "Armbian Noble Minimal BeaglePlay",
+      "description": "Community Armbian Noble minimal image for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-20",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Noble_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "ced8fa1d599df0fe7af6adfba411ebc58f172f28fe38adfe75dc4411e7253ab5",
+      "image_download_size": 310935468
+    },
+    {
+      "id": "armbian-resolute-minimal-beagleplay-26.2.5",
+      "name": "Armbian Resolute Minimal BeaglePlay",
+      "description": "Community Armbian Resolute minimal image for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.5",
+      "release_date": "2026-04-25",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Resolute_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "07afc018b7be459b019b6168675bd4b43b9e095c983095a2b4c240a46bf1fd00",
+      "image_download_size": 329322420
+    },
+    {
+      "id": "armbian-sid-kali-beagleplay-26.2.1",
+      "name": "Armbian Sid Kali BeaglePlay",
+      "description": "Community Armbian Sid image with Kali tooling for BeaglePlay.",
+      "devices": ["beagleplay"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/beagleplay/Sid_vendor_server-kali",
+      "format": "img.xz",
+      "image_download_sha256": "d2239c2db5dcafe8b03ad6aaa0714701428732a2ea8af0a11ef6c25f69f28725",
+      "image_download_size": 547760452
     },
     {
       "id": "armbian-trixie-minimal-sk-am62b-26.2.1",

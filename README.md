@@ -11,13 +11,15 @@ TOBI now carries board definitions and catalog entries for these starter kits an
 | SK-AM62-LP | `am62xx-lp-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
 | SK-AM62-SIP | `am62xxsip-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
 | SK-AM62B | `am62xx-evm` | `PROCESSOR-SDK-LINUX-AM62X` |
+| BeaglePlay | `beagleplay-ti` | `PROCESSOR-SDK-LINUX-AM62X` |
 | SK-AM62A-LP | `am62axx-evm` | `PROCESSOR-SDK-LINUX-AM62A` |
 | TMDS62LEVM | `am62lxx-evm` | `AM62L-LINUX-SDK` |
 | SK-AM64B | `am64xx-evm` | `PROCESSOR-SDK-LINUX-AM64X` |
+| TMDS64EVM | `am64xx-evm` | `PROCESSOR-SDK-LINUX-AM64X` |
 | SK-AM68 | `am68-sk` | `PROCESSOR-SDK-LINUX-AM68` |
 | SK-AM69 | `am69-sk` | `PROCESSOR-SDK-LINUX-AM69` |
 
-The catalog also includes Armbian community downloads for SK-AM62-LP as a separate Community section.
+The catalog also includes Armbian community downloads for supported boards that have matching Armbian board pages as a separate Community section.
 
 ## Layout
 

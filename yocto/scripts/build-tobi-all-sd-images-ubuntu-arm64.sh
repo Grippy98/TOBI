@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MACHINES="${MACHINES:-am62pxx-evm am62xx-evm am62xx-lp-evm am62xxsip-evm am62axx-evm am62lxx-evm am64xx-evm am68-sk am69-sk}"
+MACHINES="${MACHINES:-am62pxx-evm am62xx-evm am62xx-lp-evm am62xxsip-evm beagleplay-ti am62axx-evm am62lxx-evm am64xx-evm am68-sk am69-sk}"
 
 if [[ ! -x "$REPO_ROOT/out/aarch64-linux/tobi" ]]; then
   "$REPO_ROOT/yocto/scripts/build-tobi-ubuntu-arm64.sh"

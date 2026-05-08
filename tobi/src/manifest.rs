@@ -205,6 +205,11 @@ fn supported_devices() -> Vec<DeviceEntry> {
             compatible: vec!["ti,am625-sk".to_string()],
         },
         DeviceEntry {
+            id: "beagleplay".to_string(),
+            name: "BeaglePlay".to_string(),
+            compatible: vec!["beagle,am625-beagleplay".to_string()],
+        },
+        DeviceEntry {
             id: "sk-am62a-lp".to_string(),
             name: "SK-AM62A-LP".to_string(),
             compatible: vec!["ti,am62a7-sk".to_string(), "ti,am62a7".to_string()],
@@ -218,6 +223,11 @@ fn supported_devices() -> Vec<DeviceEntry> {
             id: "sk-am64b".to_string(),
             name: "SK-AM64B".to_string(),
             compatible: vec!["ti,am642-sk".to_string(), "ti,am642".to_string()],
+        },
+        DeviceEntry {
+            id: "tmds64evm".to_string(),
+            name: "TMDS64EVM".to_string(),
+            compatible: vec!["ti,am642-evm".to_string(), "ti,am642".to_string()],
         },
         DeviceEntry {
             id: "sk-am68".to_string(),

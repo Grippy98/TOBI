@@ -121,15 +121,49 @@ fn read_model() -> Option<String> {
         .filter(|model| !model.is_empty())
 }
 
-#[cfg(target_os = "linux")]
 fn match_catalog_device<'a>(
     catalog: &'a Catalog,
     compatible: &[String],
 ) -> Option<&'a crate::manifest::DeviceEntry> {
-    catalog.devices.iter().find(|device| {
-        device
-            .compatible
+    compatible.iter().find_map(|detected| {
+        catalog
+            .devices
             .iter()
-            .any(|entry| compatible.iter().any(|detected| detected == entry))
+            .find(|device| device.compatible.iter().any(|entry| entry == detected))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::DeviceEntry;
+
+    #[test]
+    fn match_catalog_device_prefers_detected_compatible_order() {
+        let catalog = Catalog {
+            schema_version: 1,
+            generated_at: None,
+            devices: vec![
+                DeviceEntry {
+                    id: "sk-am64b".to_string(),
+                    name: "SK-AM64B".to_string(),
+                    compatible: vec!["ti,am642-sk".to_string(), "ti,am642".to_string()],
+                },
+                DeviceEntry {
+                    id: "tmds64evm".to_string(),
+                    name: "TMDS64EVM".to_string(),
+                    compatible: vec!["ti,am642-evm".to_string(), "ti,am642".to_string()],
+                },
+            ],
+            images: Vec::new(),
+        };
+
+        let matched = match_catalog_device(
+            &catalog,
+            &["ti,am642-evm".to_string(), "ti,am642".to_string()],
+        )
+        .expect("matched board");
+
+        assert_eq!(matched.id, "tmds64evm");
+    }
 }
