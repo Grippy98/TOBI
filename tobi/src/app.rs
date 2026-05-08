@@ -49,6 +49,7 @@ pub struct RunnerGame {
     score: u64,
     runner_y: i16,
     velocity: i16,
+    viewport_width: i16,
     obstacles: Vec<Obstacle>,
     crashed: bool,
 }
@@ -248,6 +249,10 @@ impl App {
 
     pub fn runner(&self) -> &RunnerGame {
         &self.runner
+    }
+
+    pub fn set_terminal_size(&mut self, width: u16, _height: u16) {
+        self.runner.set_viewport_width(width);
     }
 
     pub fn system_status(&self) -> &SystemStatus {
@@ -680,6 +685,7 @@ impl Default for RunnerGame {
             score: 0,
             runner_y: 0,
             velocity: 0,
+            viewport_width: 80,
             obstacles: Vec::new(),
             crashed: false,
         }
@@ -733,7 +739,7 @@ impl RunnerGame {
                 ObstacleKind::Rock
             };
             self.obstacles.push(Obstacle {
-                x: 140,
+                x: self.spawn_x(),
                 width: 2 + ((self.tick / 37) % 2) as i16,
                 kind,
             });
@@ -761,6 +767,15 @@ impl RunnerGame {
         }
         let interval = 28_u64.saturating_sub((self.score / 180).min(10));
         self.tick % interval == 0
+    }
+
+    fn set_viewport_width(&mut self, width: u16) {
+        let install_popup_width = i16::try_from(width.saturating_mul(72) / 100).unwrap_or(80);
+        self.viewport_width = install_popup_width.saturating_sub(4).max(32);
+    }
+
+    fn spawn_x(&self) -> i16 {
+        self.viewport_width.saturating_sub(6).max(24)
     }
 }
 

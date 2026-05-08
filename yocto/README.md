@@ -55,6 +55,8 @@ Override it with `TOBI_MANIFEST_URL` in the initramfs environment, or with the k
 tobi.manifest=https://example.com/catalog.json
 ```
 
+No downloadable-image catalog is embedded into the initramfs. If the hosted catalog cannot be reached at runtime, TOBI keeps running and offers only the local custom-image flow.
+
 Build or provide an AArch64 Linux `tobi` binary and point Yocto at it:
 
 ```sh

@@ -121,6 +121,7 @@ fn read_model() -> Option<String> {
         .filter(|model| !model.is_empty())
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn match_catalog_device<'a>(
     catalog: &'a Catalog,
     compatible: &[String],

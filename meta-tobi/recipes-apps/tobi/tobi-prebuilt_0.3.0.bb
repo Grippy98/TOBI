@@ -5,8 +5,6 @@ LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
 TOBI_PREBUILT ?= ""
-
-SRC_URI += "file://catalog.json"
 S = "${UNPACKDIR}"
 
 python () {
@@ -20,10 +18,8 @@ do_compile[noexec] = "1"
 do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${TOBI_PREBUILT} ${D}${bindir}/tobi
-    install -d ${D}${sysconfdir}/tobi
-    install -m 0644 ${UNPACKDIR}/catalog.json ${D}${sysconfdir}/tobi/catalog.json
 }
 
-FILES:${PN} += "${bindir}/tobi ${sysconfdir}/tobi/catalog.json"
+FILES:${PN} += "${bindir}/tobi"
 RDEPENDS:${PN} += "liblzma"
 INSANE_SKIP:${PN} += "already-stripped"

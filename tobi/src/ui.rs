@@ -10,11 +10,14 @@ use crate::device::{InstallTarget, format_bytes};
 use crate::installer::RunMode;
 use crate::manifest::ImageEntry;
 use crate::memory::check_image_memory;
+use crate::qr;
 
 const TI_RED: Color = Color::Rgb(204, 0, 0);
 const TI_TEAL: Color = Color::Rgb(0, 153, 160);
 const TI_TEAL_DARK: Color = Color::Rgb(0, 96, 104);
 const TI_WHITE: Color = Color::Rgb(245, 247, 250);
+const TI_PROCESSORS_URL: &str = "https://www.ti.com/sitara";
+const TI_SDK_DOCS_URL: &str = "https://texasinstruments.github.io/processor-sdk-doc/";
 
 pub fn render(frame: &mut Frame, app: &App) {
     let root = frame.area();
@@ -105,10 +108,78 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
-    let popup = centered_rect(74, 66, area);
+    let popup = centered_rect(92, 94, area);
     frame.render_widget(Clear, popup);
+    let block = panel_block(" Welcome ");
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
 
-    let lines = vec![
+    let split_for_qr = inner.width >= 86 && inner.height >= 19;
+    let chunks = if split_for_qr {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(58), Constraint::Percentage(42)])
+            .split(inner)
+    } else {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(100)])
+            .split(inner)
+    };
+    let compact = !split_for_qr && inner.height < 16;
+
+    let mut lines = welcome_intro_lines(app);
+    if compact {
+        lines.extend([
+            Line::from("Flash an OS image from the internet or local media."),
+            Line::from("Plug in Ethernet and a keyboard to proceed."),
+            Line::from("No network? Attach FAT32 USB media with a compatible image."),
+        ]);
+    } else {
+        lines.extend([
+            Line::from("Pick and flash a fresh OS image from the internet,"),
+            Line::from("or install a compatible local image from attached media."),
+            Line::from(""),
+            Line::from("Please plug in an Ethernet cable and keyboard to proceed."),
+            Line::from("TOBI can be used with an external display or from the serial console."),
+            Line::from(""),
+            Line::from("If no network is available, plug in a FAT32-formatted USB drive"),
+            Line::from("containing compatible image files and flash that way."),
+        ]);
+    }
+    lines.extend([
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("TI processors: ", label_style()),
+            Span::raw(TI_PROCESSORS_URL),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Press Enter to continue.",
+            Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
+        )),
+    ]);
+
+    frame.render_widget(
+        Paragraph::new(lines)
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false }),
+        chunks[0],
+    );
+
+    if split_for_qr {
+        render_qr_panel(
+            frame,
+            chunks[1],
+            "TI processors",
+            TI_PROCESSORS_URL,
+            "Scan for TI processor docs.",
+        );
+    }
+}
+
+fn welcome_intro_lines(app: &App) -> Vec<Line<'static>> {
+    vec![
         Line::from(Span::styled(
             "Welcome to TOBI",
             Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
@@ -117,9 +188,6 @@ fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
             "Texas Instruments Out of Box Installer",
             Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD),
         )),
-        Line::from(""),
-        Line::from("Pick and flash a fresh OS image from the internet,"),
-        Line::from("or install a compatible local image from attached media."),
         Line::from(""),
         Line::from(vec![
             Span::styled("Board: ", label_style()),
@@ -132,25 +200,8 @@ fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled("Ethernet: ", label_style()),
             Span::raw(app.system_status().ethernet.clone()),
         ]),
-        Line::from("Please plug in an Ethernet cable and keyboard to proceed."),
-        Line::from("TOBI can be used with an external display or from the serial console."),
         Line::from(""),
-        Line::from("If no network is available, plug in a FAT32-formatted USB drive"),
-        Line::from("containing compatible image files and flash that way."),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Press Enter to continue.",
-            Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
-        )),
-    ];
-
-    frame.render_widget(
-        Paragraph::new(lines)
-            .block(panel_block(" Welcome "))
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: false }),
-        popup,
-    );
+    ]
 }
 
 fn render_image_select(frame: &mut Frame, app: &App, area: Rect) {
@@ -176,7 +227,7 @@ fn render_image_select(frame: &mut Frame, app: &App, area: Rect) {
 
     let details = app
         .selected_catalog_image()
-        .map(image_details)
+        .map(|image| image_details(image, chunks[1]))
         .unwrap_or_else(|| vec![Line::from("No image selected.")]);
     frame.render_widget(
         Paragraph::new(details)
@@ -565,7 +616,7 @@ fn render_installing(frame: &mut Frame, app: &App, area: Rect) {
 fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
     // TODO: Replace this quick ASCII runner with a more satisfying install-time mini-game.
     let available_rows = usize::from(area.height.saturating_sub(2));
-    let game_height = available_rows.saturating_sub(1).max(1);
+    let game_height = available_rows.saturating_sub(1).clamp(3, 6);
     let width = usize::from(area.width.saturating_sub(2)).max(24);
     let mut grid = vec![vec![' '; width]; game_height];
     let ground = game_height - 1;
@@ -584,21 +635,16 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     let runner_x = 5_i16;
-    let max_runner_y = ground.saturating_sub(4).min(5);
+    let max_runner_y = ground.saturating_sub(3).min(4);
     let runner_y =
         usize::try_from(app.runner().runner_y().clamp(0, max_runner_y as i16)).unwrap_or(0);
-    let runner_top = ground.saturating_sub(runner_y + 4);
+    let runner_top = ground.saturating_sub(runner_y + 3);
     let leg_frame = if (app.runner().score() / 4).is_multiple_of(2) {
         "/ \\"
     } else {
         "\\ /"
     };
-    draw_sprite(
-        &mut grid,
-        runner_x,
-        runner_top,
-        &[" o ", "/|\\", "/ \\", leg_frame],
-    );
+    draw_sprite(&mut grid, runner_x, runner_top, &[" o ", "/|\\", leg_frame]);
 
     for obstacle in app.runner().obstacles() {
         match obstacle.kind {
@@ -606,8 +652,8 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
                 draw_sprite(
                     &mut grid,
                     obstacle.x,
-                    ground.saturating_sub(4),
-                    &["  |  ", "\\ | /", " \\|/ ", "  |  "],
+                    ground.saturating_sub(2),
+                    &[" \\|/ ", "  |  "],
                 );
             }
             ObstacleKind::Rock => {
@@ -627,7 +673,7 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
         Span::raw("   "),
         Span::styled(
             if app.runner().crashed() {
-                "Crash - jump to restart"
+                "Mini-game over - Space to restart"
             } else {
                 "Space/Up/W jump"
             },
@@ -935,8 +981,8 @@ fn target_details(app: &App, target: &InstallTarget) -> Vec<Line<'static>> {
     lines
 }
 
-fn image_details(image: &ImageEntry) -> Vec<Line<'static>> {
-    vec![
+fn image_details(image: &ImageEntry, area: Rect) -> Vec<Line<'static>> {
+    let mut lines = vec![
         Line::from(vec![
             Span::styled("Name: ", label_style()),
             Span::raw(image.name.clone()),
@@ -984,7 +1030,15 @@ fn image_details(image: &ImageEntry) -> Vec<Line<'static>> {
             Span::styled("URL: ", label_style()),
             Span::raw(image.url.clone()),
         ]),
-    ]
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("TI SDK docs: ", label_style()),
+            Span::raw(TI_SDK_DOCS_URL),
+        ]),
+    ];
+
+    append_qr_lines(&mut lines, area, TI_SDK_DOCS_URL);
+    lines
 }
 
 fn render_warning(frame: &mut Frame, app: &App, area: Rect) {
@@ -1048,11 +1102,16 @@ fn image_list_items(app: &App) -> (Vec<ListItem<'static>>, Option<usize>) {
                 ListItem::new(Line::from(Span::styled(
                     format!(" {} ", category.to_uppercase()),
                     Style::default()
-                        .fg(TI_WHITE)
-                        .bg(TI_TEAL_DARK)
+                        .fg(Color::Black)
+                        .bg(TI_TEAL)
                         .add_modifier(Modifier::BOLD),
                 )))
-                .style(Style::default().fg(TI_WHITE)),
+                .style(
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(TI_TEAL)
+                        .add_modifier(Modifier::BOLD),
+                ),
             );
             last_category = Some(category);
         }
@@ -1121,4 +1180,58 @@ fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(vertical[1])[1]
+}
+
+fn render_qr_panel(frame: &mut Frame, area: Rect, title: &str, url: &str, caption: &str) {
+    let qr_lines = qr::render_qr(
+        url,
+        area.width.saturating_sub(2),
+        area.height.saturating_sub(6),
+    );
+    let mut lines = vec![
+        Line::from(Span::styled(
+            title.to_string(),
+            Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+    ];
+    if let Some(qr_lines) = qr_lines {
+        lines.extend(qr_lines.into_iter().map(|line| {
+            Line::from(Span::styled(
+                line,
+                Style::default().fg(TI_WHITE).bg(Color::Black),
+            ))
+        }));
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from(caption.to_string()));
+    lines.push(Line::from(url.to_string()));
+
+    frame.render_widget(
+        Paragraph::new(lines)
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false }),
+        area,
+    );
+}
+
+fn append_qr_lines(lines: &mut Vec<Line<'static>>, area: Rect, url: &str) {
+    if area.width < 48 || area.height < 30 {
+        return;
+    }
+    let Some(qr_lines) = qr::render_qr(url, area.width.saturating_sub(4), area.height / 2) else {
+        return;
+    };
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Scan for TI Processor SDK docs:",
+        Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD),
+    )));
+    lines.extend(qr_lines.into_iter().map(|line| {
+        Line::from(Span::styled(
+            line,
+            Style::default().fg(TI_WHITE).bg(Color::Black),
+        ))
+    }));
 }

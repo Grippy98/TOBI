@@ -25,6 +25,8 @@ Mock mode defaults to SK-AM62P-LP. To preview another board's filtered OS list:
 TOBI_MOCK_BOARD=sk-am64b cargo run -- --mode mock
 ```
 
+The app intentionally does not embed a downloadable-image catalog. If the online catalog cannot be reached, TOBI shows a warning and continues with the local custom-image option only.
+
 ## Run Locally
 
 ```sh

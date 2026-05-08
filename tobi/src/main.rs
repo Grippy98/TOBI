@@ -5,6 +5,7 @@ mod device;
 mod installer;
 mod manifest;
 mod memory;
+mod qr;
 mod ui;
 
 use std::path::PathBuf;
@@ -131,7 +132,11 @@ fn run_app(
         app.tick_runner();
         app.refresh_system_status_if_due();
         app.auto_reboot_if_due();
-        terminal.draw(|frame| ui::render(frame, &app))?;
+        terminal.draw(|frame| {
+            let area = frame.area();
+            app.set_terminal_size(area.width, area.height);
+            ui::render(frame, &app)
+        })?;
 
         if event::poll(Duration::from_millis(80))? {
             let Event::Key(key) = event::read()? else {
