@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Wrap};
 
-use crate::app::{App, ObstacleKind, Screen};
+use crate::app::{App, ObstacleKind, ProxyConfigField, Screen};
 use crate::custom_image::CustomImage;
 use crate::device::{InstallTarget, format_bytes};
 use crate::installer::RunMode;
@@ -414,28 +414,36 @@ fn render_confirm(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_proxy_config(frame: &mut Frame, app: &App, area: Rect) {
-    let popup = centered_rect(72, 54, area);
+    let popup = centered_rect(74, 64, area);
     frame.render_widget(Clear, popup);
+    let time_active = app.proxy_config_field() == ProxyConfigField::Time;
+    let proxy_active = app.proxy_config_field() == ProxyConfigField::Proxy;
 
     let mut lines = vec![
         Line::from(Span::styled(
-            "Configure Proxy",
+            "Set Time and Configure Proxy",
             Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from("Enter an HTTP/HTTPS proxy URL to retry loading the online OS catalog."),
+        Line::from("TLS downloads need the board clock to be correct before proxy retry."),
+        Line::from("Set UTC time first, then enter the HTTP/HTTPS proxy URL."),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Proxy: ", label_style()),
-            Span::styled(
-                app.proxy_input().to_string(),
-                Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD),
-            ),
+            field_marker(time_active),
+            Span::styled("UTC time: ", label_style()),
+            Span::styled(app.proxy_time_input().to_string(), input_style(time_active)),
         ]),
+        Line::from("Format: YYYY-MM-DD HH:MM:SS"),
         Line::from(""),
+        Line::from(vec![
+            field_marker(proxy_active),
+            Span::styled("Proxy: ", label_style()),
+            Span::styled(app.proxy_input().to_string(), input_style(proxy_active)),
+        ]),
         Line::from("Example: http://proxy.example.com:8080"),
         Line::from(""),
-        Line::from("Press Enter to retry. Press Esc to keep using custom local images."),
+        Line::from("Enter moves from time to proxy, then retries the online catalog."),
+        Line::from("Up/Down switches fields. Esc keeps using custom local images."),
     ];
 
     if let Some(warning) = app.warning() {
@@ -823,7 +831,8 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
                 .to_string()
         }
         Screen::ProxyConfig => {
-            "type proxy URL | Enter retry catalog | Esc continue offline".to_string()
+            "type field value | Enter next/retry | Up/Down field | Esc continue offline"
+                .to_string()
         }
         Screen::TargetSelect => {
             "Up/Down choose target | Left/Right hide/show partitions | Enter continue | R refresh | Q quit".to_string()
@@ -1055,7 +1064,9 @@ fn render_warning(frame: &mut Frame, app: &App, area: Rect) {
     lines.extend(warning.lines().map(|line| Line::from(line.to_string())));
     lines.push(Line::from(""));
     lines.push(Line::from("Enter: continue with local/custom images"));
-    lines.push(Line::from("P: configure proxy and retry online catalog"));
+    lines.push(Line::from(
+        "P: set UTC time and proxy, then retry online catalog",
+    ));
 
     frame.render_widget(
         Paragraph::new(lines)
@@ -1151,6 +1162,26 @@ fn image_list_items(app: &App) -> (Vec<ListItem<'static>>, Option<usize>) {
 
 fn label_style() -> Style {
     Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD)
+}
+
+fn field_marker(active: bool) -> Span<'static> {
+    if active {
+        Span::styled(
+            "> ",
+            Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
+        )
+    } else {
+        Span::raw("  ")
+    }
+}
+
+fn input_style(active: bool) -> Style {
+    let style = Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD);
+    if active {
+        style.bg(TI_TEAL_DARK)
+    } else {
+        style
+    }
 }
 
 fn panel_block(title: &'static str) -> Block<'static> {

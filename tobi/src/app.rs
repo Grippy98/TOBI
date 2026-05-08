@@ -5,6 +5,8 @@ use std::process::Command;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
+use anyhow::{Context, bail};
+
 use crate::board::{self, DetectedBoard};
 use crate::custom_image::{
     CustomImage, custom_placeholder, is_custom_placeholder, scan_custom_images,
@@ -43,6 +45,12 @@ pub struct SystemStatus {
     pub ethernet: String,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProxyConfigField {
+    Time,
+    Proxy,
+}
+
 #[derive(Clone, Debug)]
 pub struct RunnerGame {
     tick: u64,
@@ -77,6 +85,8 @@ pub struct App {
     manifest_source: String,
     proxy_url: Option<String>,
     proxy_input: String,
+    proxy_time_input: String,
+    proxy_config_field: ProxyConfigField,
     screen: Screen,
     image_index: usize,
     custom_image_index: usize,
@@ -124,6 +134,8 @@ impl App {
             allow_write,
             manifest_source,
             proxy_input: proxy_url.clone().unwrap_or_default(),
+            proxy_time_input: current_utc_datetime_input(),
+            proxy_config_field: ProxyConfigField::Time,
             proxy_url,
             screen: Screen::Welcome,
             image_index,
@@ -241,6 +253,14 @@ impl App {
 
     pub fn proxy_input(&self) -> &str {
         &self.proxy_input
+    }
+
+    pub fn proxy_time_input(&self) -> &str {
+        &self.proxy_time_input
+    }
+
+    pub fn proxy_config_field(&self) -> ProxyConfigField {
+        self.proxy_config_field
     }
 
     pub fn memory_check(&self) -> Option<MemoryCheck> {
@@ -461,9 +481,12 @@ impl App {
 
     pub fn start_proxy_config(&mut self) {
         self.warning = None;
+        self.proxy_config_field = ProxyConfigField::Time;
+        self.proxy_time_input = current_utc_datetime_input();
         self.proxy_input = self.proxy_url.clone().unwrap_or_default();
         self.screen = Screen::ProxyConfig;
-        self.status = "Enter proxy URL and press Enter to retry the online catalog.".to_string();
+        self.status = "Confirm UTC time first, then enter a proxy URL to retry the online catalog."
+            .to_string();
     }
 
     pub fn cancel_proxy_config(&mut self) {
@@ -473,15 +496,65 @@ impl App {
 
     pub fn proxy_push(&mut self, ch: char) {
         if !ch.is_control() {
-            self.proxy_input.push(ch);
+            match self.proxy_config_field {
+                ProxyConfigField::Time => self.proxy_time_input.push(ch),
+                ProxyConfigField::Proxy => self.proxy_input.push(ch),
+            }
         }
     }
 
     pub fn proxy_backspace(&mut self) {
-        self.proxy_input.pop();
+        match self.proxy_config_field {
+            ProxyConfigField::Time => {
+                self.proxy_time_input.pop();
+            }
+            ProxyConfigField::Proxy => {
+                self.proxy_input.pop();
+            }
+        }
+    }
+
+    pub fn next_proxy_field(&mut self) {
+        if self.proxy_config_field == ProxyConfigField::Time {
+            self.proxy_config_field = ProxyConfigField::Proxy;
+            self.status =
+                "Enter proxy URL and press Enter to retry the online catalog.".to_string();
+        }
+    }
+
+    pub fn previous_proxy_field(&mut self) {
+        if self.proxy_config_field == ProxyConfigField::Proxy {
+            self.proxy_config_field = ProxyConfigField::Time;
+            self.status =
+                "Confirm or edit the UTC time before retrying the online catalog.".to_string();
+        }
+    }
+
+    pub fn submit_proxy_config(&mut self) {
+        if self.proxy_config_field == ProxyConfigField::Time {
+            match validate_utc_datetime_input(&self.proxy_time_input) {
+                Ok(()) => self.next_proxy_field(),
+                Err(error) => {
+                    self.warning = Some(format!("{error:#}"));
+                }
+            }
+            return;
+        }
+
+        self.apply_proxy_config();
     }
 
     pub fn apply_proxy_config(&mut self) {
+        if let Err(error) = set_system_time_for_proxy(self.run_mode, &self.proxy_time_input) {
+            self.warning = Some(format!(
+                "Could not set system time before retrying the online catalog.\n\n{error:#}"
+            ));
+            self.proxy_config_field = ProxyConfigField::Time;
+            return;
+        }
+        self.system_status = read_system_status();
+        self.system_status_refreshed_at = Some(Instant::now());
+
         let proxy = self.proxy_input.trim().to_string();
         let proxy = (!proxy.is_empty()).then_some(proxy);
 
@@ -853,6 +926,117 @@ fn read_system_status() -> SystemStatus {
         ip,
         ethernet,
     }
+}
+
+fn current_utc_datetime_input() -> String {
+    command_output("date", &["-u", "+%Y-%m-%d %H:%M:%S"])
+        .unwrap_or_else(|| "2026-01-01 00:00:00".to_string())
+}
+
+fn set_system_time_for_proxy(run_mode: RunMode, input: &str) -> anyhow::Result<()> {
+    validate_utc_datetime_input(input)?;
+    if run_mode == RunMode::Mock {
+        return Ok(());
+    }
+
+    set_system_utc_time(input.trim())
+}
+
+fn validate_utc_datetime_input(input: &str) -> anyhow::Result<()> {
+    let input = input.trim();
+    if input.len() != 19 {
+        bail!("UTC time must use YYYY-MM-DD HH:MM:SS format.");
+    }
+
+    let bytes = input.as_bytes();
+    if bytes.get(4) != Some(&b'-')
+        || bytes.get(7) != Some(&b'-')
+        || bytes.get(10) != Some(&b' ')
+        || bytes.get(13) != Some(&b':')
+        || bytes.get(16) != Some(&b':')
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 4 | 7 | 10 | 13 | 16) || byte.is_ascii_digit())
+    {
+        bail!("UTC time must use YYYY-MM-DD HH:MM:SS format.");
+    }
+
+    let year = parse_datetime_part(input, 0..4, "year")?;
+    let month = parse_datetime_part(input, 5..7, "month")?;
+    let day = parse_datetime_part(input, 8..10, "day")?;
+    let hour = parse_datetime_part(input, 11..13, "hour")?;
+    let minute = parse_datetime_part(input, 14..16, "minute")?;
+    let second = parse_datetime_part(input, 17..19, "second")?;
+
+    if !(2020..=2099).contains(&year) {
+        bail!("UTC year must be between 2020 and 2099.");
+    }
+    if !(1..=12).contains(&month) {
+        bail!("UTC month must be between 01 and 12.");
+    }
+    if !(1..=days_in_month(year, month)).contains(&day) {
+        bail!("UTC day is not valid for this month.");
+    }
+    if hour > 23 || minute > 59 || second > 59 {
+        bail!("UTC time must be a valid 24-hour time.");
+    }
+
+    Ok(())
+}
+
+fn parse_datetime_part(
+    input: &str,
+    range: std::ops::Range<usize>,
+    label: &str,
+) -> anyhow::Result<u32> {
+    input[range]
+        .parse::<u32>()
+        .with_context(|| format!("invalid UTC {label}"))
+}
+
+fn days_in_month(year: u32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if is_leap_year(year) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+fn is_leap_year(year: u32) -> bool {
+    (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
+}
+
+#[cfg(target_os = "linux")]
+fn set_system_utc_time(input: &str) -> anyhow::Result<()> {
+    let attempts: [&[&str]; 2] = [
+        &["-u", "-s", input],
+        &["-u", "-D", "%Y-%m-%d %H:%M:%S", "-s", input],
+    ];
+    let mut last_error = String::new();
+
+    for args in attempts {
+        let output = Command::new("date")
+            .args(args)
+            .output()
+            .context("failed to run date to set system time")?;
+        if output.status.success() {
+            return Ok(());
+        }
+        last_error = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if last_error.is_empty() {
+            last_error = format!("date exited with status {}", output.status);
+        }
+    }
+
+    bail!("{last_error}");
+}
+
+#[cfg(not(target_os = "linux"))]
+fn set_system_utc_time(_input: &str) -> anyhow::Result<()> {
+    bail!("setting system time is supported only on live Linux targets");
 }
 
 fn command_output(command: &str, args: &[&str]) -> Option<String> {
@@ -1273,6 +1457,77 @@ mod tests {
 
         app.success_completed_at = Some(Instant::now() - Duration::from_secs(10));
         assert_eq!(app.complete_auto_reboot_seconds(), Some(0));
+    }
+
+    #[test]
+    fn proxy_config_prompts_for_time_before_proxy() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            Some("http://proxy.example.com:8080".to_string()),
+            None,
+        );
+
+        app.start_proxy_config();
+
+        assert_eq!(app.proxy_config_field, ProxyConfigField::Time);
+        assert!(validate_utc_datetime_input(&app.proxy_time_input).is_ok());
+        assert_eq!(app.proxy_input, "http://proxy.example.com:8080");
+    }
+
+    #[test]
+    fn proxy_config_enter_advances_after_valid_time() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        app.start_proxy_config();
+        app.proxy_time_input = "2026-05-08 12:34:56".to_string();
+
+        app.submit_proxy_config();
+
+        assert_eq!(app.proxy_config_field, ProxyConfigField::Proxy);
+        assert!(app.warning.is_none());
+    }
+
+    #[test]
+    fn proxy_config_rejects_invalid_time_before_proxy() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "sample/catalog.json".to_string(),
+            None,
+            None,
+        );
+        app.start_proxy_config();
+        app.proxy_time_input = "2026-02-30 12:34:56".to_string();
+
+        app.submit_proxy_config();
+
+        assert_eq!(app.proxy_config_field, ProxyConfigField::Time);
+        assert!(app.warning.is_some());
+    }
+
+    #[test]
+    fn validates_utc_datetime_format() {
+        assert!(validate_utc_datetime_input("2026-02-28 23:59:59").is_ok());
+        assert!(validate_utc_datetime_input("2028-02-29 00:00:00").is_ok());
+        assert!(validate_utc_datetime_input("2026-02-29 00:00:00").is_err());
+        assert!(validate_utc_datetime_input("2026-05-08T12:00:00").is_err());
+        assert!(validate_utc_datetime_input("2019-05-08 12:00:00").is_err());
     }
 
     fn catalog() -> Catalog {

@@ -77,7 +77,7 @@ For local testing or unusual mount layouts:
 TOBI_CUSTOM_IMAGE_ROOTS="/path/to/images:/another/root" cargo run -- --mode mock
 ```
 
-If the online catalog cannot be reached, TOBI stays open, warns the user, and still allows flashing a custom local image. Press `P` from the warning to enter a proxy URL and retry the catalog.
+If the online catalog cannot be reached, TOBI stays open, warns the user, and still allows flashing a custom local image. Press `P` from the warning to set the UTC system time, enter a proxy URL, and retry the catalog. The time prompt matters because HTTPS catalog and image downloads can fail when the board clock is wrong.
 
 TOBI streams images directly to the target media. The full downloaded or local image does not need to fit into RAM; only the installer runtime, decompressor, and write buffers do. Before installing, TOBI checks the available RAM against an estimated working set and blocks the install if that working set cannot fit.
 

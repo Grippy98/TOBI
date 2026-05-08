@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
         Err(error) if manifest::is_remote_source(&args.manifest) => (
             manifest::fallback_catalog(),
             Some(format!(
-                "Could not fetch the online OS catalog. You can still flash a custom local image from attached media. Press P to configure a proxy and retry, or Enter to continue.\n\n{error:#}"
+                "Could not fetch the online OS catalog. You can still flash a custom local image from attached media. Press P to set UTC time, configure a proxy, and retry, or Enter to continue.\n\n{error:#}"
             )),
         ),
         Err(error) => {
@@ -182,7 +182,7 @@ fn run_app(
             }
 
             match key.code {
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc if app.can_quit() => {
+                KeyCode::Char('q') | KeyCode::Char('Q') if app.can_quit() => {
                     return Ok(());
                 }
                 KeyCode::Char('c') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
@@ -194,8 +194,10 @@ fn run_app(
                     _ => {}
                 },
                 _ if app.screen() == Screen::ProxyConfig => match key.code {
-                    KeyCode::Enter => app.apply_proxy_config(),
+                    KeyCode::Enter => app.submit_proxy_config(),
                     KeyCode::Esc => app.cancel_proxy_config(),
+                    KeyCode::Tab | KeyCode::Down => app.next_proxy_field(),
+                    KeyCode::BackTab | KeyCode::Up => app.previous_proxy_field(),
                     KeyCode::Backspace => app.proxy_backspace(),
                     KeyCode::Char(ch) => app.proxy_push(ch),
                     _ => {}
@@ -220,6 +222,7 @@ fn run_app(
                 KeyCode::Char('r') | KeyCode::Char('R') if app.screen() != Screen::Installing => {
                     app.refresh_devices()
                 }
+                KeyCode::Esc if app.can_quit() => return Ok(()),
                 _ => {}
             }
         }

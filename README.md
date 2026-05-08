@@ -60,6 +60,8 @@ or by setting `TOBI_MANIFEST_URL` in the initramfs environment.
 
 The production image does not embed a downloadable-image catalog. If the board cannot reach the hosted catalog, TOBI falls back to local-image flashing only and asks the user to attach FAT32 media with a compatible image file.
 
+When a proxy is needed, TOBI prompts for UTC system time before the proxy URL so TLS validation can succeed even if automatic time sync failed.
+
 ## License
 
 TOBI is licensed under GPL v2 only (`GPL-2.0-only`). See [LICENSE](LICENSE).

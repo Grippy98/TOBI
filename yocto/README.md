@@ -57,6 +57,8 @@ tobi.manifest=https://example.com/catalog.json
 
 No downloadable-image catalog is embedded into the initramfs. If the hosted catalog cannot be reached at runtime, TOBI keeps running and offers only the local custom-image flow.
 
+If the network is present but a proxy is required, the TUI recovery flow asks the user to set UTC system time first, then enter the proxy URL before retrying the hosted catalog.
+
 Build or provide an AArch64 Linux `tobi` binary and point Yocto at it:
 
 ```sh
