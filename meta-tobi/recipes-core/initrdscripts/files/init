@@ -1,0 +1,204 @@
+#!/bin/sh
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+export PATH
+
+mount -t proc proc /proc 2>/dev/null || true
+mount -t sysfs sysfs /sys 2>/dev/null || true
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+mount -t tmpfs tmpfs /run 2>/dev/null || true
+mount -t tmpfs tmpfs /tmp 2>/dev/null || true
+
+mkdir -p /media /mnt /run/media
+
+echo "TOBI initramfs starting"
+
+cmdline="$(cat /proc/cmdline 2>/dev/null || true)"
+
+cmdline_has() {
+    case " $cmdline " in
+        *" $1 "*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+cmdline_value() {
+    key="$1"
+    for arg in $cmdline; do
+        case "$arg" in
+            "$key="*) echo "${arg#*=}"; return 0 ;;
+        esac
+    done
+    return 1
+}
+
+quiet_kernel_console() {
+    cmdline_has "tobi.verbose_console=1" && return 0
+
+    # TOBI owns the framebuffer TTY. Keep late kernel/module printk messages
+    # out of the UI; they remain available through dmesg and the debug shell.
+    command -v dmesg >/dev/null 2>&1 && dmesg -n 1 >/dev/null 2>&1 || true
+    [ -w /proc/sys/kernel/printk ] && echo "1 1 1 7" >/proc/sys/kernel/printk 2>/dev/null || true
+}
+
+load_modules() {
+    command -v modprobe >/dev/null 2>&1 || return 0
+
+    # These are intentionally best-effort. The exact built-in/module split can
+    # differ across TI SDK kernels, and missing modules should not block TOBI.
+    # Bridge/connector modules need to be available before tidss probes, since
+    # there is no udev in this initramfs to retry deferred display probes.
+    for module in \
+        drm \
+        drm_kms_helper \
+        drm_client_lib \
+        drm_client_modeset \
+        drm_dma_helper \
+        drm_display_helper \
+        display-connector \
+        simple-bridge \
+        panel-simple \
+        panel-simple-dsi \
+        pwm-tiecap \
+        pwm-tiehrpwm \
+        gpio-backlight \
+        gpio-regulator \
+        phy-cadence-torrent \
+        cdns-dphy \
+        cdns-mhdp8546 \
+        sii902x \
+        it66121 \
+        tidss \
+        fbcon \
+        usbhid \
+        hid-generic \
+        usb-storage \
+        xhci-hcd \
+        xhci-plat-hcd \
+        sd-mod
+    do
+        modprobe "$module" >/dev/null 2>&1 || true
+    done
+}
+
+network_has_route() {
+    ip route 2>/dev/null | grep -q '^default '
+}
+
+network_has_dns() {
+    [ -s /etc/resolv.conf ] && grep -q '^nameserver ' /etc/resolv.conf
+}
+
+wait_for_carrier() {
+    iface="$1"
+    carrier="/sys/class/net/$iface/carrier"
+    [ -e "$carrier" ] || return 0
+
+    for _ in 1 2 3 4 5 6 7 8; do
+        [ "$(cat "$carrier" 2>/dev/null || echo 1)" = "1" ] && return 0
+        sleep 1
+    done
+
+    return 1
+}
+
+bring_up_network() {
+    command -v ip >/dev/null 2>&1 || return 0
+    command -v udhcpc >/dev/null 2>&1 || return 0
+
+    script="/usr/share/udhcpc/default.script"
+    [ -x "$script" ] || script=""
+
+    ip link set lo up 2>/dev/null || true
+    mkdir -p /run
+
+    # Ethernet on TI boards may appear before PHY link is ready. Retry DHCP
+    # across all non-loopback interfaces so the installer is online before a
+    # user can start a network image flash.
+    for _ in 1 2 3; do
+        for iface_path in /sys/class/net/*; do
+            iface="${iface_path##*/}"
+            [ "$iface" = "lo" ] && continue
+
+            ip link set "$iface" up 2>/dev/null || true
+            wait_for_carrier "$iface" || continue
+
+            echo "Requesting DHCP on $iface..." >/dev/console
+            if [ -n "$script" ]; then
+                udhcpc -i "$iface" -s "$script" -p "/run/udhcpc.$iface.pid" -q -n -t 5 >/dev/console 2>&1 || true
+            else
+                udhcpc -i "$iface" -p "/run/udhcpc.$iface.pid" -q -n -t 5 >/dev/console 2>&1 || true
+            fi
+
+            if network_has_route && network_has_dns; then
+                echo "Network ready on $iface." >/dev/console
+                return 0
+            fi
+        done
+        sleep 2
+    done
+
+    echo "Network not configured; TOBI can still flash local images." >/dev/console
+}
+
+clock_year() {
+    date -u +%Y 2>/dev/null || echo 1970
+}
+
+sync_clock() {
+    command -v rdate >/dev/null 2>&1 || return 0
+    [ "$(clock_year)" -ge 2024 ] 2>/dev/null && return 0
+    network_has_route || return 0
+
+    for server in time.nist.gov time-a-g.nist.gov time-b-g.nist.gov; do
+        echo "Setting clock from $server..." >/dev/console
+        rdate -s "$server" >/dev/console 2>&1 || true
+        [ "$(clock_year)" -ge 2024 ] 2>/dev/null && {
+            echo "Clock set to $(date -u)." >/dev/console
+            return 0
+        }
+    done
+
+    echo "Clock not synchronized; HTTPS downloads may fail." >/dev/console
+}
+
+start_debug_shell() {
+    cmdline_has "tobi.debug_shell=1" || return 0
+    [ -c /dev/ttyS2 ] || return 0
+
+    (
+        echo
+        echo "TOBI debug shell on ttyS2"
+        echo "The installer UI is running on ${TOBI_TTY:-/dev/console}."
+        exec /bin/sh
+    ) </dev/ttyS2 >/dev/ttyS2 2>&1 &
+}
+
+quiet_kernel_console
+load_modules
+
+bring_up_network
+sync_clock
+
+TOBI_TTY="$(cmdline_value tobi.tty || true)"
+TOBI_TTY="${TOBI_TTY:-/dev/console}"
+export TOBI_TTY
+export TERM="${TERM:-linux}"
+
+TOBI_MANIFEST_SOURCE="$(cmdline_value tobi.manifest || true)"
+TOBI_MANIFEST_SOURCE="${TOBI_MANIFEST_SOURCE:-${TOBI_MANIFEST_URL:-/etc/tobi/catalog.json}}"
+
+start_debug_shell
+
+while true; do
+    echo "Starting TOBI on $TOBI_TTY" >/dev/console
+    /usr/bin/tobi \
+        --manifest "$TOBI_MANIFEST_SOURCE" \
+        --mode live \
+        --allow-write \
+        <"$TOBI_TTY" >"$TOBI_TTY" 2>&1
+
+    rc="$?"
+    echo "TOBI exited with status $rc; starting recovery shell on /dev/console." >/dev/console
+    /bin/sh </dev/console >/dev/console 2>&1
+done

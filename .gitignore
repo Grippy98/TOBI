@@ -1,0 +1,11 @@
+/target/
+/tisdk/
+/downloads/
+/sstate-cache/
+/build/
+/deploy/
+/out/
+.home/
+bitbake-cookerdaemon.log
+bitbake.lock
+.DS_Store

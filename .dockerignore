@@ -1,0 +1,10 @@
+.git
+out
+target
+tobi/target
+tisdk
+downloads
+sstate-cache
+build
+deploy
+.DS_Store

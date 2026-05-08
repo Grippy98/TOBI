@@ -1,0 +1,9 @@
+bootpart=1:1
+bootdir=
+finduuid=part uuid ${boot} 1:2 uuid
+
+name_initramfs=uInitrd
+
+uenvcmd=setexpr fdtfile sub ti/ti ti; run bootcmd_ti_mmc
+
+optargs=vt.global_cursor_default=1 console=tty0 quiet loglevel=1 tobi.debug_shell=1

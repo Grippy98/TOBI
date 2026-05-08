@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-07T00:00:00Z",
+  "devices": [
+    {
+      "id": "sk-am62p-lp",
+      "name": "SK-AM62P-LP",
+      "compatible": ["ti,am62p5-sk", "ti,am62px-sk", "ti,am62pxx-evm"]
+    },
+    {
+      "id": "am62pxx-evm",
+      "name": "AM62Px EVM",
+      "compatible": ["ti,am62pxx-evm"]
+    }
+  ],
+  "images": [
+    {
+      "id": "tisdk-default-am62pxx-12.00.00.07.04",
+      "name": "TI Processor SDK Linux",
+      "description": "Default Yocto SD-card image for PROCESSOR-SDK-LINUX-AM62P. This is the primary TI reference image for SK-AM62P-LP.",
+      "devices": ["sk-am62p-lp", "am62pxx-evm"],
+      "category": "Yocto",
+      "recommended": true,
+      "version": "12.00.00.07.04",
+      "release_date": "2026-04-14",
+      "channel": "stable",
+      "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-default-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
+      "format": "wic.xz",
+      "image_download_size": 1254303328
+    },
+    {
+      "id": "tisdk-display-cluster-am62pxx-12.00.00.07.04",
+      "name": "TI Display Cluster Image",
+      "description": "Yocto display-cluster SD-card image for PROCESSOR-SDK-LINUX-AM62P, intended for HMI and display-focused AM62P demos.",
+      "devices": ["sk-am62p-lp", "am62pxx-evm"],
+      "category": "Yocto",
+      "recommended": false,
+      "version": "12.00.00.07.04",
+      "release_date": "2026-04-14",
+      "channel": "stable",
+      "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-display-cluster-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
+      "format": "wic.xz",
+      "image_download_size": 1013449344
+    },
+    {
+      "id": "tisdk-jailhouse-am62pxx-12.00.00.07.04",
+      "name": "TI Jailhouse Hypervisor Image",
+      "description": "Yocto Jailhouse Hypervisor SD-card image for PROCESSOR-SDK-LINUX-AM62P.",
+      "devices": ["sk-am62p-lp", "am62pxx-evm"],
+      "category": "Virtualization",
+      "recommended": false,
+      "version": "12.00.00.07.04",
+      "release_date": "2026-04-14",
+      "channel": "stable",
+      "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-jailhouse-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
+      "format": "wic.xz",
+      "image_download_size": 1043217124
+    },
+    {
+      "id": "tisdk-debian-trixie-sk-am62p-12.00.00.07.04",
+      "name": "TI Debian Trixie",
+      "description": "Debian Trixie SD-card image from TI's AM62P Processor SDK release, built using the Armbian framework.",
+      "devices": ["sk-am62p-lp", "am62pxx-evm"],
+      "category": "Debian",
+      "recommended": false,
+      "version": "12.00.00.07.04",
+      "release_date": "2026-04-14",
+      "channel": "stable",
+      "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-debian-trixie-sk-am62p-12.00.00.07.04-Armbian-26.05.img.xz",
+      "format": "img.xz",
+      "image_download_size": 666690848
+    }
+  ]
+}
