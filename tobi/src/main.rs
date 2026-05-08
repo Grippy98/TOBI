@@ -34,7 +34,7 @@ struct Args {
     #[arg(long, default_value = DEFAULT_MANIFEST_URL)]
     manifest: String,
 
-    #[arg(long, value_enum, default_value_t = CliRunMode::Mock)]
+    #[arg(long, value_enum, default_value_t = CliRunMode::Live)]
     mode: CliRunMode,
 
     #[arg(long)]
@@ -43,14 +43,23 @@ struct Args {
     #[arg(long)]
     allow_write: bool,
 
+    #[arg(long, conflicts_with = "allow_write")]
+    no_allow_write: bool,
+
     #[arg(long)]
     proxy: Option<String>,
 }
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum CliRunMode {
     Mock,
     Live,
+}
+
+impl Args {
+    fn write_allowed(&self) -> bool {
+        !self.no_allow_write && (self.allow_write || self.mode == CliRunMode::Live)
+    }
 }
 
 impl From<CliRunMode> for RunMode {
@@ -93,7 +102,7 @@ fn main() -> anyhow::Result<()> {
             board,
             devices,
             run_mode,
-            args.allow_write,
+            args.write_allowed(),
             args.manifest,
             args.proxy,
             warning,
@@ -101,6 +110,32 @@ fn main() -> anyhow::Result<()> {
     );
     restore_terminal(&mut terminal)?;
     app_result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_to_live_write_mode() {
+        let args = Args::parse_from(["tobi"]);
+        assert_eq!(args.mode, CliRunMode::Live);
+        assert!(args.write_allowed());
+    }
+
+    #[test]
+    fn mock_mode_is_still_available_for_safe_local_runs() {
+        let args = Args::parse_from(["tobi", "--mode", "mock"]);
+        assert_eq!(args.mode, CliRunMode::Mock);
+        assert!(!args.write_allowed());
+    }
+
+    #[test]
+    fn live_write_permission_can_be_disabled_explicitly() {
+        let args = Args::parse_from(["tobi", "--mode", "live", "--no-allow-write"]);
+        assert_eq!(args.mode, CliRunMode::Live);
+        assert!(!args.write_allowed());
+    }
 }
 
 fn setup_terminal() -> anyhow::Result<Terminal<CrosstermBackend<std::io::Stdout>>> {

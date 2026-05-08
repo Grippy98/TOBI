@@ -79,7 +79,7 @@ cargo build --release
 cargo run -- --mode mock
 ```
 
-`mock` mode never writes to a real block device. Live writes are guarded by `--mode live --allow-write`.
+Running TOBI with no arguments starts the production path: `--mode live` with write permissions enabled. Use `--mode mock` for local UI testing; mock mode never writes to a real block device. Use `--no-allow-write` to inspect live device detection without allowing writes.
 
 ## Build With Docker
 

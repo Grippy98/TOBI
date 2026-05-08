@@ -29,11 +29,19 @@ The app intentionally does not embed a downloadable-image catalog. If the online
 
 ## Run Locally
 
+No arguments match the production appliance behavior: live mode with write permissions enabled.
+
+```sh
+cargo run --
+```
+
+For local UI testing, use mock mode:
+
 ```sh
 cargo run -- --mode mock
 ```
 
-`mock` mode is the default and never writes to a real block device.
+`mock` mode never writes to a real block device. Use `--no-allow-write` if you need live device detection without permitting writes.
 
 ## Build On Linux
 
@@ -82,15 +90,13 @@ docker run --rm -it tobi
 
 ## Live Write Mode
 
-Live mode is intentionally guarded:
+Live mode is the default production mode. The TUI still requires explicit target selection and confirmation before writing:
 
 ```sh
 sudo tobi \
   --manifest https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json \
-  --mode live \
   --proxy http://proxy.example.com:8080 \
-  --target /dev/mmcblk0 \
-  --allow-write
+  --target /dev/mmcblk0
 ```
 
 The production Yocto image should run fully from initramfs before this mode is used.
