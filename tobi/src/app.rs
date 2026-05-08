@@ -819,8 +819,9 @@ fn category_rank(category: &str) -> u8 {
         "Yocto" => 0,
         "Edge AI" => 1,
         "Debian" => 2,
-        "Virtualization" => 3,
-        "Buildroot" => 4,
+        "Community" => 3,
+        "Virtualization" => 4,
+        "Buildroot" => 5,
         "Custom" => 99,
         _ => 50,
     }

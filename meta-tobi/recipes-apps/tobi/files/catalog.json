@@ -61,7 +61,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-default-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1254302720
+      "image_download_size": 1254303328
     },
     {
       "id": "tisdk-display-cluster-am62pxx-12.00.00.07.04",
@@ -75,7 +75,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-display-cluster-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1013448704
+      "image_download_size": 1013449344
     },
     {
       "id": "tisdk-jailhouse-am62pxx-12.00.00.07.04",
@@ -89,7 +89,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-jailhouse-image-am62pxx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1043216384
+      "image_download_size": 1043217124
     },
     {
       "id": "tisdk-debian-trixie-sk-am62p-12.00.00.07.04",
@@ -103,7 +103,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-9ti3Ig9hNi/12.00.00.07.04/tisdk-debian-trixie-sk-am62p-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 666690560
+      "image_download_size": 666690848
     },
     {
       "id": "tisdk-default-am62xx-12.00.00.07.04",
@@ -117,7 +117,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-default-image-am62xx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1254044672
+      "image_download_size": 1254045440
     },
     {
       "id": "tisdk-jailhouse-am62xx-12.00.00.07.04",
@@ -131,7 +131,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-jailhouse-image-am62xx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1042966528
+      "image_download_size": 1042966812
     },
     {
       "id": "tisdk-debian-trixie-sk-am62b-12.00.00.07.04",
@@ -145,7 +145,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-debian-trixie-sk-am62b-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 666861568
+      "image_download_size": 666861724
     },
     {
       "id": "tisdk-buildroot-am62xx-12.00.00.07.04",
@@ -159,8 +159,8 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-buildroot-sdcard-image-am62xx-evm-12.00.00.07.04.img",
       "format": "raw",
-      "image_download_size": 335544320,
-      "extract_size": 335544320
+      "image_download_size": 335544832,
+      "extract_size": 335544832
     },
     {
       "id": "tisdk-default-am62xx-lp-12.00.00.07.04",
@@ -174,7 +174,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-default-image-am62xx-lp-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1250899968
+      "image_download_size": 1250900384
     },
     {
       "id": "tisdk-jailhouse-am62xx-lp-12.00.00.07.04",
@@ -188,7 +188,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-jailhouse-image-am62xx-lp-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1042236416
+      "image_download_size": 1042237084
     },
     {
       "id": "tisdk-debian-trixie-sk-am62-lp-12.00.00.07.04",
@@ -202,7 +202,142 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-debian-trixie-sk-am62-lp-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 555764736
+      "image_download_size": 555765380
+    },
+    {
+      "id": "armbian-trixie-minimal-sk-am62-lp-26.2.1",
+      "name": "Armbian Trixie Minimal SK-AM62-LP",
+      "description": "Community Armbian Trixie minimal image for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-03-03",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Trixie_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "41af7aaac3d93b06cadc7f9d2d85bbd1a3875f33b3b6de8bfa815c799bfb3548",
+      "image_download_size": 317306460
+    },
+    {
+      "id": "armbian-noble-minimal-sk-am62-lp-26.2.1",
+      "name": "Armbian Noble Minimal SK-AM62-LP",
+      "description": "Community Armbian Noble minimal image for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-03-03",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Noble_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "d7f45c0c69ecbf4f89a4ecae025ece48421bc6f5a68e313a73fb5613d7f4e498",
+      "image_download_size": 299214964
+    },
+    {
+      "id": "armbian-noble-gnome-sk-am62-lp-26.2.1",
+      "name": "Armbian Noble GNOME SK-AM62-LP",
+      "description": "Community Armbian Noble GNOME desktop image for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-03-03",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Noble_vendor_gnome",
+      "format": "img.xz",
+      "image_download_sha256": "ef481b67763e4f7d0de18fe520b640c6aacd9c4761da3c7e48f1c9d02608d594",
+      "image_download_size": 1388144476
+    },
+    {
+      "id": "armbian-noble-kde-neon-sk-am62-lp-26.2.1",
+      "name": "Armbian Noble KDE Neon SK-AM62-LP",
+      "description": "Community Armbian Noble KDE Neon desktop image for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-03-03",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Noble_vendor_kde-neon",
+      "format": "img.xz",
+      "image_download_sha256": "13b24cc5484aa2e075c916f9de8e1f180dec5f8b5a2e5a2a44537c5557c5d6d7",
+      "image_download_size": 1579806644
+    },
+    {
+      "id": "armbian-resolute-minimal-sk-am62-lp-26.2.5",
+      "name": "Armbian Resolute Minimal SK-AM62-LP",
+      "description": "Community Armbian Resolute minimal image for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.5",
+      "release_date": "2026-04-25",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Resolute_vendor_minimal",
+      "format": "img.xz",
+      "image_download_sha256": "7598b1322806e10575d517b71f30e3cfcbab312a30b721f3211f0ff9cad259c9",
+      "image_download_size": 329147276
+    },
+    {
+      "id": "armbian-sid-kali-sk-am62-lp-26.2.1",
+      "name": "Armbian Sid Kali SK-AM62-LP",
+      "description": "Community Armbian Sid image with Kali tooling for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Sid_vendor_server-kali",
+      "format": "img.xz",
+      "image_download_sha256": "ff7ce08c4e97b6ffaf8592866c6d29a3ea5fd50fbb8e8937b7bb11f92df38b5f",
+      "image_download_size": 544372404
+    },
+    {
+      "id": "armbian-trixie-homeassistant-sk-am62-lp-26.2.1",
+      "name": "Armbian Trixie Home Assistant SK-AM62-LP",
+      "description": "Community Armbian Trixie image with Home Assistant tooling for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Trixie_vendor_server-homeassistant",
+      "format": "img.xz",
+      "image_download_sha256": "8ca47c4c5dda15d8d45f192b91cb4056ad3bf8b7db19d554103fe7abf41e42b2",
+      "image_download_size": 545739592
+    },
+    {
+      "id": "armbian-trixie-omv-sk-am62-lp-26.2.1",
+      "name": "Armbian Trixie OpenMediaVault SK-AM62-LP",
+      "description": "Community Armbian Trixie minimal image with OpenMediaVault tooling for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Trixie_vendor_minimal-omv",
+      "format": "img.xz",
+      "image_download_sha256": "9ca84a61bdb0945a798c781248474c681df4b52b6333e727e1f5a628172c8dc7",
+      "image_download_size": 445413608
+    },
+    {
+      "id": "armbian-trixie-openhab-sk-am62-lp-26.2.1",
+      "name": "Armbian Trixie openHAB SK-AM62-LP",
+      "description": "Community Armbian Trixie image with openHAB tooling for SK-AM62-LP.",
+      "devices": ["sk-am62-lp"],
+      "category": "Community",
+      "recommended": false,
+      "version": "26.2.1",
+      "release_date": "2026-02-12",
+      "channel": "community",
+      "url": "https://dl.armbian.com/sk-am62-lp/Trixie_vendor_server-openhab",
+      "format": "img.xz",
+      "image_download_sha256": "a757199ba52b6c9ad2d5b2401bfad2cd1a8df0fe9148fdedae464b1ea0a3a9a6",
+      "image_download_size": 1268666056
     },
     {
       "id": "tisdk-default-am62xxsip-12.00.00.07.04",
@@ -216,7 +351,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-default-image-am62xxsip-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1095814144
+      "image_download_size": 1095814640
     },
     {
       "id": "tisdk-debian-trixie-sk-am62-sip-12.00.00.07.04",
@@ -230,7 +365,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-debian-trixie-sk-am62-sip-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 556449792
+      "image_download_size": 556450072
     },
     {
       "id": "tisdk-edgeai-am62a-11.01.07.05",
@@ -244,7 +379,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-D37Ls3JjkT/11.01.07.05/tisdk-edgeai-image-am62a-evm-11.01.07.05.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1128434688
+      "image_download_size": 1128435608
     },
     {
       "id": "tisdk-default-am62lxx-12.00.00.07.04",
@@ -258,7 +393,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-YjEeNKJJjt/12.00.00.07.04/tisdk-default-image-am62lxx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 982235136
+      "image_download_size": 982235216
     },
     {
       "id": "tisdk-jailhouse-am62lxx-12.00.00.07.04",
@@ -272,7 +407,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-YjEeNKJJjt/12.00.00.07.04/tisdk-jailhouse-image-am62lxx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 802271232
+      "image_download_size": 802271996
     },
     {
       "id": "tisdk-debian-trixie-tmds62levm-12.00.00.07.04",
@@ -286,7 +421,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-YjEeNKJJjt/12.00.00.07.04/tisdk-debian-trixie-tmds62levm-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 514480128
+      "image_download_size": 514480892
     },
     {
       "id": "tisdk-buildroot-am62lxx-12.00.00.07.04",
@@ -300,8 +435,8 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-YjEeNKJJjt/12.00.00.07.04/tisdk-buildroot-sdcard-image-am62lxx-evm-12.00.00.07.04.img",
       "format": "raw",
-      "image_download_size": 335544320,
-      "extract_size": 335544320
+      "image_download_size": 335544832,
+      "extract_size": 335544832
     },
     {
       "id": "tisdk-default-am64xx-12.00.00.07.04",
@@ -315,7 +450,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-yXgchBCk98/12.00.00.07.04/tisdk-default-image-am64xx-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1011078144
+      "image_download_size": 1011078668
     },
     {
       "id": "tisdk-debian-trixie-sk-am64b-12.00.00.07.04",
@@ -329,7 +464,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-yXgchBCk98/12.00.00.07.04/tisdk-debian-trixie-sk-am64b-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 366837760
+      "image_download_size": 366838204
     },
     {
       "id": "tisdk-default-am68-sk-11.00.10.01",
@@ -343,7 +478,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-U7xpsgK4Eg/11.00.10.01/tisdk-default-image-am68-sk.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 765770752
+      "image_download_size": 765771184
     },
     {
       "id": "tisdk-default-am69-sk-11.00.10.01",
@@ -357,7 +492,7 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-b37PeCB7WX/11.00.10.01/tisdk-default-image-am69-sk.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 768277504
+      "image_download_size": 768278240
     }
   ]
 }

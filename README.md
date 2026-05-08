@@ -17,6 +17,8 @@ TOBI now carries board definitions and catalog entries for these starter kits an
 | SK-AM68 | `am68-sk` | `PROCESSOR-SDK-LINUX-AM68` |
 | SK-AM69 | `am69-sk` | `PROCESSOR-SDK-LINUX-AM69` |
 
+The catalog also includes Armbian community downloads for SK-AM62-LP as a separate Community section.
+
 ## Layout
 
 ```text

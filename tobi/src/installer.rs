@@ -414,8 +414,10 @@ impl ResumableHttpReader {
             )));
         }
 
-        if self.offset == 0 && self.expected_len.is_none() {
-            self.expected_len = response.content_length();
+        if self.offset == 0
+            && let Some(content_length) = response.content_length()
+        {
+            self.expected_len = Some(content_length);
         }
         if self.offset > 0 {
             self.validate_content_range(&response)?;
@@ -425,7 +427,7 @@ impl ResumableHttpReader {
         Ok(())
     }
 
-    fn validate_content_range(&self, response: &reqwest::blocking::Response) -> io::Result<()> {
+    fn validate_content_range(&mut self, response: &reqwest::blocking::Response) -> io::Result<()> {
         let Some(range) = response.headers().get(CONTENT_RANGE) else {
             return Err(io::Error::other("resume response is missing Content-Range"));
         };
@@ -443,12 +445,14 @@ impl ResumableHttpReader {
                 self.offset
             )));
         }
-        if let (Some(expected), Some(total)) = (self.expected_len, total)
-            && expected != total
-        {
-            return Err(io::Error::other(format!(
-                "resumed download size changed from {expected} to {total}"
-            )));
+        if let Some(total) = total {
+            if total < self.offset {
+                return Err(io::Error::other(format!(
+                    "resume total {total} is smaller than current offset {}",
+                    self.offset
+                )));
+            }
+            self.expected_len = Some(total);
         }
         Ok(())
     }
@@ -750,6 +754,28 @@ mod tests {
         decoder
             .read_to_end(&mut decoded)
             .expect("range resume should keep the xz stream alive");
+        assert_eq!(decoded, payload);
+    }
+
+    #[test]
+    fn resumable_http_reader_uses_http_size_over_manifest_size() {
+        let payload = b"complete compressed image with a stale manifest byte count";
+        let compressed = xz_compress(payload);
+        let split = compressed.len().saturating_sub(12);
+        let stale_manifest_size = compressed.len().saturating_sub(5) as u64;
+        let url = range_resume_test_server(compressed.clone(), split);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("client");
+        let mut reader = ResumableHttpReader::new(client, url, Some(stale_manifest_size), 2);
+        reader.open_response().expect("open initial response");
+        let mut decoder = XzDecoder::new(reader);
+        let mut decoded = Vec::new();
+
+        decoder
+            .read_to_end(&mut decoded)
+            .expect("HTTP Content-Length should replace stale manifest size");
         assert_eq!(decoded, payload);
     }
 
