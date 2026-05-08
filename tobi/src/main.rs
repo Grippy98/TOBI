@@ -24,10 +24,13 @@ use installer::RunMode;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
+const DEFAULT_MANIFEST_URL: &str =
+    "https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json";
+
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
 struct Args {
-    #[arg(long, default_value = "sample/catalog.json")]
+    #[arg(long, default_value = DEFAULT_MANIFEST_URL)]
     manifest: String,
 
     #[arg(long, value_enum, default_value_t = CliRunMode::Mock)]

@@ -27,6 +27,18 @@ cd build
 bitbake-layers add-layer /absolute/path/to/meta-tobi
 ```
 
+The initramfs defaults to the public catalog hosted by the TOBI repository:
+
+```text
+https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json
+```
+
+Override it with `TOBI_MANIFEST_URL` in the initramfs environment, or with the kernel argument:
+
+```text
+tobi.manifest=https://example.com/catalog.json
+```
+
 Build or provide an AArch64 Linux `tobi` binary and point Yocto at it:
 
 ```sh
@@ -64,7 +76,7 @@ out/yocto/tobi-initramfs-am62pxx-evm.rootfs.cpio.xz
 
 The helper keeps the TI SDK checkout, downloads, sstate cache, and build home in Docker named volumes. That avoids BitBake's `TMPDIR` case-sensitivity check on macOS/APFS and keeps repeat builds incremental.
 
-To build a customer-flashable two-part SD-card image:
+To build a user-flashable two-part SD-card image:
 
 ```sh
 ./yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh
@@ -93,5 +105,8 @@ deploy-ti/images/am62pxx-evm/tobi-initramfs-am62pxx-evm.cpio.xz
 
 1. Build a target `tobi` binary through a Yocto-native Rust recipe or through a cross-build job.
 2. Add U-Boot/FIT packaging so SK-AM62P-LP boots kernel + DTB + TOBI initramfs fully into RAM from eMMC.
-3. Replace the placeholder `TOBI_MANIFEST_URL` with the production catalog URL.
-4. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
+3. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
+
+## License
+
+TOBI is licensed under GPL v2 only (`GPL-2.0-only`).

@@ -1,8 +1,8 @@
 SUMMARY = "TOBI - TI Out of Box Installer"
 DESCRIPTION = "Terminal OS installer for Texas Instruments Sitara starter kit evaluation modules."
-HOMEPAGE = "https://github.com/your-org/tobi"
-LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7cacdbeed46a0096b10"
+HOMEPAGE = "https://github.com/Grippy98/TOBI"
+LICENSE = "GPL-2.0-only"
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
 TOBI_PREBUILT ?= ""
 

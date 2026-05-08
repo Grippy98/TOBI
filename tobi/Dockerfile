@@ -19,6 +19,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /app/target/release/tobi /usr/local/bin/tobi
 COPY sample ./sample
+COPY LICENSE /usr/share/doc/tobi/LICENSE
 
 ENTRYPOINT ["tobi"]
-CMD ["--manifest", "sample/catalog.json", "--mode", "mock"]
+CMD ["--mode", "mock"]

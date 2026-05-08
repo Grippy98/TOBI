@@ -4,13 +4,40 @@
 
 The first target board is **SK-AM62P-LP** using TI's Yocto machine name `am62pxx-evm`.
 
-## Run Locally
+## Catalog
+
+TOBI uses the public GitHub-hosted catalog by default:
+
+```text
+https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json
+```
+
+Use `--manifest` to test a local or alternate catalog:
 
 ```sh
 cargo run -- --manifest sample/catalog.json --mode mock
 ```
 
+## Run Locally
+
+```sh
+cargo run -- --mode mock
+```
+
 `mock` mode is the default and never writes to a real block device.
+
+## Build On Linux
+
+Ubuntu 22.04 host example:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential ca-certificates curl git pkg-config libssl-dev liblzma-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+cargo test
+cargo build --release
+```
 
 ## Custom Images
 
@@ -50,7 +77,7 @@ Live mode is intentionally guarded:
 
 ```sh
 sudo tobi \
-  --manifest https://example.com/ti-os-catalog.json \
+  --manifest https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json \
   --mode live \
   --proxy http://proxy.example.com:8080 \
   --target /dev/mmcblk0 \
@@ -58,3 +85,7 @@ sudo tobi \
 ```
 
 The production Yocto image should run fully from initramfs before this mode is used.
+
+## License
+
+TOBI is licensed under GPL v2 only (`GPL-2.0-only`). See [LICENSE](LICENSE).

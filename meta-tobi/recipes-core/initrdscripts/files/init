@@ -185,8 +185,9 @@ TOBI_TTY="${TOBI_TTY:-/dev/console}"
 export TOBI_TTY
 export TERM="${TERM:-linux}"
 
+TOBI_DEFAULT_MANIFEST_URL="https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json"
 TOBI_MANIFEST_SOURCE="$(cmdline_value tobi.manifest || true)"
-TOBI_MANIFEST_SOURCE="${TOBI_MANIFEST_SOURCE:-${TOBI_MANIFEST_URL:-/etc/tobi/catalog.json}}"
+TOBI_MANIFEST_SOURCE="${TOBI_MANIFEST_SOURCE:-${TOBI_MANIFEST_URL:-$TOBI_DEFAULT_MANIFEST_URL}}"
 
 start_debug_shell
 
