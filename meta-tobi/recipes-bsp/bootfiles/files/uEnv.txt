@@ -6,4 +6,4 @@ name_initramfs=uInitrd
 
 uenvcmd=setexpr fdtfile sub ti/ti ti; run bootcmd_ti_mmc
 
-optargs=vt.global_cursor_default=1 console=tty0 quiet loglevel=1 tobi.debug_shell=1
+optargs=vt.global_cursor_default=1 console=ttyS2,115200n8 console=tty0 quiet loglevel=1 tobi.ttys=/dev/tty0,/dev/ttyS2

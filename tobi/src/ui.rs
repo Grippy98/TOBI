@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Wrap};
 
-use crate::app::{App, ObstacleKind, ProxyConfigField, Screen};
+use crate::app::{App, ObstacleKind, ProxyConfigField, RunnerObstacle, Screen};
 use crate::custom_image::CustomImage;
 use crate::device::{InstallTarget, format_bytes};
 use crate::installer::RunMode;
@@ -414,7 +414,7 @@ fn render_confirm(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_proxy_config(frame: &mut Frame, app: &App, area: Rect) {
-    let popup = centered_rect(74, 64, area);
+    let popup = centered_rect(78, 84, area);
     frame.render_widget(Clear, popup);
     let time_active = app.proxy_config_field() == ProxyConfigField::Time;
     let proxy_active = app.proxy_config_field() == ProxyConfigField::Proxy;
@@ -425,25 +425,13 @@ fn render_proxy_config(frame: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from("TLS downloads need the board clock to be correct before proxy retry."),
-        Line::from("Set UTC time first, then enter the HTTP/HTTPS proxy URL."),
-        Line::from(""),
-        Line::from(vec![
-            field_marker(time_active),
-            Span::styled("UTC time: ", label_style()),
-            Span::styled(app.proxy_time_input().to_string(), input_style(time_active)),
-        ]),
+        input_line("UTC time", app.proxy_time_input(), time_active, 19),
         Line::from("Format: YYYY-MM-DD HH:MM:SS"),
         Line::from(""),
-        Line::from(vec![
-            field_marker(proxy_active),
-            Span::styled("Proxy: ", label_style()),
-            Span::styled(app.proxy_input().to_string(), input_style(proxy_active)),
-        ]),
+        input_line("Proxy", app.proxy_input(), proxy_active, 36),
         Line::from("Example: http://proxy.example.com:8080"),
         Line::from(""),
-        Line::from("Enter moves from time to proxy, then retries the online catalog."),
-        Line::from("Up/Down switches fields. Esc keeps using custom local images."),
+        Line::from("Enter advances/retries. Up/Down switches fields. Esc keeps local images."),
     ];
 
     if let Some(warning) = app.warning() {
@@ -626,76 +614,20 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
     let available_rows = usize::from(area.height.saturating_sub(2));
     let game_height = available_rows.saturating_sub(1).clamp(3, 6);
     let width = usize::from(area.width.saturating_sub(2)).max(24);
-    let mut grid = vec![vec![' '; width]; game_height];
-    let ground = game_height - 1;
-
-    for (x, cell) in grid[ground].iter_mut().enumerate() {
-        *cell = if (x + usize::try_from(app.runner().score() / 2).unwrap_or(0)) % 7 == 0 {
-            '_'
-        } else {
-            '-'
-        };
-    }
-    for x in (0..width).step_by(11) {
-        if ground > 0 {
-            grid[ground - 1][x] = '.';
-        }
-    }
-
-    let runner_x = 5_i16;
-    let max_runner_y = ground.saturating_sub(3).min(4);
-    let runner_y =
-        usize::try_from(app.runner().runner_y().clamp(0, max_runner_y as i16)).unwrap_or(0);
-    let runner_top = ground.saturating_sub(runner_y + 3);
-    let leg_frame = if (app.runner().score() / 4).is_multiple_of(2) {
-        "/ \\"
-    } else {
-        "\\ /"
-    };
-    draw_sprite(&mut grid, runner_x, runner_top, &[" o ", "/|\\", leg_frame]);
-
-    for obstacle in app.runner().obstacles() {
-        match obstacle.kind {
-            ObstacleKind::Cactus => {
-                draw_sprite(
-                    &mut grid,
-                    obstacle.x,
-                    ground.saturating_sub(2),
-                    &[" \\|/ ", "  |  "],
-                );
-            }
-            ObstacleKind::Rock => {
-                draw_sprite(
-                    &mut grid,
-                    obstacle.x,
-                    ground.saturating_sub(2),
-                    &["/^^\\", "\\__/"],
-                );
-            }
-        }
-    }
+    let grid = runner_game_grid(
+        width,
+        game_height,
+        app.runner().runner_y(),
+        app.runner().obstacles(),
+    );
 
     let mut lines = vec![Line::from(vec![
         Span::styled("Score: ", label_style()),
         Span::raw(app.runner().score().to_string()),
         Span::raw("   "),
-        Span::styled(
-            if app.runner().crashed() {
-                "Mini-game over - Space to restart"
-            } else {
-                "Space/Up/W jump"
-            },
-            Style::default().fg(if app.runner().crashed() {
-                TI_RED
-            } else {
-                TI_TEAL
-            }),
-        ),
+        Span::styled("Space/Up/W jump", Style::default().fg(TI_TEAL)),
     ])];
-    lines.extend(
-        grid.into_iter()
-            .map(|row| Line::from(row.into_iter().collect::<String>())),
-    );
+    lines.extend(grid.into_iter().map(Line::from));
 
     frame.render_widget(
         Paragraph::new(lines)
@@ -703,6 +635,53 @@ fn render_runner_game(frame: &mut Frame, app: &App, area: Rect) {
             .wrap(Wrap { trim: false }),
         area,
     );
+}
+
+fn runner_game_grid(
+    width: usize,
+    game_height: usize,
+    runner_y: i16,
+    obstacles: &[RunnerObstacle],
+) -> Vec<String> {
+    let mut grid = vec![vec![' '; width]; game_height];
+    let ground = game_height - 1;
+
+    draw_runner_ground(&mut grid, ground);
+
+    let runner_x = 5_i16;
+    let max_runner_y = ground.saturating_sub(3).min(4);
+    let runner_y = usize::try_from(runner_y.clamp(0, max_runner_y as i16)).unwrap_or(0);
+    let runner_top = ground.saturating_sub(runner_y + 3);
+    draw_sprite(&mut grid, runner_x, runner_top, &[" o ", "/|\\", "/ \\"]);
+    draw_runner_obstacles(&mut grid, ground, obstacles);
+    draw_runner_ground(&mut grid, ground);
+
+    grid.into_iter()
+        .map(|row| row.into_iter().collect::<String>())
+        .collect()
+}
+
+fn draw_runner_obstacles(grid: &mut [Vec<char>], ground: usize, obstacles: &[RunnerObstacle]) {
+    if ground < 2 {
+        return;
+    }
+
+    for obstacle in obstacles {
+        match obstacle.kind() {
+            ObstacleKind::Cactus => {
+                draw_sprite(grid, obstacle.x(), ground - 2, &[" \\|/ ", "  |  "]);
+            }
+            ObstacleKind::Rock => {
+                draw_sprite(grid, obstacle.x(), ground - 2, &["/^^\\", "\\__/"]);
+            }
+        }
+    }
+}
+
+fn draw_runner_ground(grid: &mut [Vec<char>], ground: usize) {
+    for cell in &mut grid[ground] {
+        *cell = '_';
+    }
 }
 
 fn activity_symbol(tick: u64) -> &'static str {
@@ -1175,8 +1154,31 @@ fn field_marker(active: bool) -> Span<'static> {
     }
 }
 
+fn input_line(label: &'static str, value: &str, active: bool, min_width: usize) -> Line<'static> {
+    let mut content = value.to_string();
+    if content.len() < min_width {
+        content.push_str(&" ".repeat(min_width - content.len()));
+    }
+
+    Line::from(vec![
+        field_marker(active),
+        Span::styled(format!("{label}: "), label_style()),
+        Span::styled("[", input_border_style(active)),
+        Span::styled(content, input_style(active)),
+        Span::styled("]", input_border_style(active)),
+    ])
+}
+
+fn input_border_style(active: bool) -> Style {
+    let style = Style::default().fg(TI_TEAL).add_modifier(Modifier::BOLD);
+    if active { style.fg(TI_RED) } else { style }
+}
+
 fn input_style(active: bool) -> Style {
-    let style = Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD);
+    let style = Style::default()
+        .fg(TI_WHITE)
+        .bg(Color::Rgb(18, 31, 34))
+        .add_modifier(Modifier::BOLD);
     if active {
         style.bg(TI_TEAL_DARK)
     } else {
@@ -1265,4 +1267,47 @@ fn append_qr_lines(lines: &mut Vec<Line<'static>>, area: Rect, url: &str) {
             Style::default().fg(TI_WHITE).bg(Color::Black),
         ))
     }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runner_jump_keeps_ground_and_obstacles_fixed() {
+        let obstacles = [
+            RunnerObstacle::new(18, ObstacleKind::Cactus),
+            RunnerObstacle::new(34, ObstacleKind::Rock),
+            RunnerObstacle::new(52, ObstacleKind::Cactus),
+        ];
+        let grounded = runner_game_grid(80, 6, 0, &obstacles);
+        let jumping = runner_game_grid(80, 6, 2, &obstacles);
+
+        let expected_ground = "_".repeat(80);
+        assert_eq!(
+            grounded.last().map(String::as_str),
+            Some(expected_ground.as_str())
+        );
+        assert_eq!(
+            jumping.last().map(String::as_str),
+            Some(expected_ground.as_str())
+        );
+
+        for (row_index, (grounded_row, jumping_row)) in
+            grounded.iter().zip(jumping.iter()).enumerate()
+        {
+            for (column_index, (grounded_cell, jumping_cell)) in
+                grounded_row.chars().zip(jumping_row.chars()).enumerate()
+            {
+                if (5..=7).contains(&column_index) {
+                    continue;
+                }
+
+                assert_eq!(
+                    grounded_cell, jumping_cell,
+                    "static scene moved at row {row_index}, column {column_index}"
+                );
+            }
+        }
+    }
 }

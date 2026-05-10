@@ -93,6 +93,43 @@ docker build -t tobi .
 docker run --rm -it tobi
 ```
 
+For quick local UI testing from this workspace, use the helper script. It runs
+the app in mock mode, attaches it to your host terminal, and uses the same
+x86_64 Docker builder/cache used by the Yocto helper scripts:
+
+```sh
+./scripts/run-tobi-local.sh tui
+./scripts/run-tobi-local.sh serial
+./scripts/run-tobi-local.sh tui --test-proxy-setup
+```
+
+The `tui` mode exercises the HDMI-style crossterm UI. The `serial` mode
+exercises the line-oriented UART UI that the initramfs starts with
+`--serial-ui`. The `--test-proxy-setup` flag simulates a board with DHCP and
+a valid local IP where the online catalog is unreachable, then opens the UTC
+time and proxy setup screen.
+
+On an x86_64 Linux host, build natively and let Yocto cross-compile the ARM image:
+
+```sh
+./yocto/scripts/build-tobi-ubuntu-x86_64.sh
+./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+Build a specific board image by setting `MACHINE`:
+
+```sh
+MACHINE=am64xx-evm ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+Build all currently defined board images:
+
+```sh
+./yocto/scripts/build-tobi-all-sd-images-ubuntu-x86_64.sh
+```
+
+The x86_64 flow cross-compiles the standalone `tobi` binary to AArch64, then runs BitBake as a native x86_64 process. This is the preferred Docker flow for x86_64 hosts.
+
 On Apple silicon, both the Rust app and the TI Yocto image can be built in native ARM64 Ubuntu Docker without Rosetta:
 
 ```sh

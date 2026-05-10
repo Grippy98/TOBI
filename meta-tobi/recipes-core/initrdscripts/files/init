@@ -166,12 +166,124 @@ start_debug_shell() {
     cmdline_has "tobi.debug_shell=1" || return 0
     [ -c /dev/ttyS2 ] || return 0
 
+    case " $TOBI_TTYS " in
+        *" /dev/ttyS2 "*) return 0 ;;
+    esac
+
     (
         echo
         echo "TOBI debug shell on ttyS2"
-        echo "The installer UI is running on ${TOBI_TTY:-/dev/console}."
+        echo "The installer UI is running on ${TOBI_TTYS:-/dev/console}."
         exec /bin/sh
     ) </dev/ttyS2 >/dev/ttyS2 2>&1 &
+}
+
+tobi_ttys_from_cmdline() {
+    ttys="$(cmdline_value tobi.ttys || true)"
+
+    if [ -z "$ttys" ]; then
+        ttys="$(cmdline_value tobi.tty || true)"
+    fi
+
+    if [ -z "$ttys" ]; then
+        ttys="/dev/tty0,/dev/ttyS2"
+    fi
+
+    echo "$ttys" | tr ',' ' '
+}
+
+tobi_extra_args_from_cmdline() {
+    args=""
+
+    if [ "${TOBI_TEST_PROXY_SETUP:-}" = "1" ] || \
+        cmdline_has "tobi.test_proxy_setup=1" || \
+        cmdline_has "tobi.test_proxy_setup"; then
+        args="$args --test-proxy-setup"
+    fi
+
+    echo "$args"
+}
+
+tty_is_linux_vt() {
+    case "$1" in
+        /dev/tty0|/dev/tty[1-9]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+tty_status() {
+    tty="$1"
+    message="$2"
+
+    if tty_is_linux_vt "$tty"; then
+        echo "$message" >/dev/console
+    else
+        printf '\r\n%s\r\n' "$message" >"$tty" 2>/dev/null || true
+    fi
+}
+
+start_tobi_on_tty() {
+    tty="$1"
+    [ -n "$tty" ] || return 1
+    tobi_terminal_args=""
+    tobi_term="${TERM:-linux}"
+    tobi_needs_session=0
+
+    case "$tty" in
+        /dev/*) ;;
+        *) tty="/dev/$tty" ;;
+    esac
+
+    if [ ! -c "$tty" ]; then
+        echo "Skipping TOBI on $tty; device is not available." >/dev/console
+        return 1
+    fi
+
+    if ! tty_is_linux_vt "$tty"; then
+        stty -F "$tty" sane rows "${TOBI_SERIAL_ROWS:-30}" cols "${TOBI_SERIAL_COLS:-100}" 2>/dev/null || true
+        tobi_term="${TOBI_SERIAL_TERM:-ansi}"
+        tobi_terminal_args="--serial-ui"
+        tobi_needs_session=1
+    fi
+
+    log="/run/tobi-${tty##*/}.log"
+    tty_status "$tty" "Starting TOBI on $tty"
+    echo "Starting TOBI on $tty with TERM=$tobi_term at $(date -u 2>/dev/null || true)" >"$log"
+    if [ "$tobi_needs_session" = "1" ] && command -v setsid >/dev/null 2>&1; then
+        TERM="$tobi_term" setsid -c /usr/bin/tobi \
+            --manifest "$TOBI_MANIFEST_SOURCE" \
+            --mode live \
+            --allow-write \
+            $tobi_terminal_args \
+            $TOBI_EXTRA_ARGS \
+            <"$tty" >"$tty" 2>"$tty"
+    else
+        TERM="$tobi_term" /usr/bin/tobi \
+            --manifest "$TOBI_MANIFEST_SOURCE" \
+            --mode live \
+            --allow-write \
+            $tobi_terminal_args \
+            $TOBI_EXTRA_ARGS \
+            <"$tty" >"$tty" 2>"$tty"
+    fi
+    rc="$?"
+    echo "TOBI on $tty exited with status $rc at $(date -u 2>/dev/null || true)" >>"$log"
+    return "$rc"
+}
+
+start_tobi_on_tty_forever() {
+    tty="$1"
+
+    while true; do
+        start_tobi_on_tty "$tty"
+        rc="$?"
+        case "$tty" in
+            /dev/*) status_tty="$tty" ;;
+            *) status_tty="/dev/$tty" ;;
+        esac
+        tty_status "$status_tty" "TOBI on $status_tty exited with status $rc; restarting."
+        sleep 1
+    done
 }
 
 quiet_kernel_console
@@ -180,26 +292,36 @@ load_modules
 bring_up_network
 sync_clock
 
-TOBI_TTY="$(cmdline_value tobi.tty || true)"
-TOBI_TTY="${TOBI_TTY:-/dev/console}"
-export TOBI_TTY
+TOBI_TTYS="$(tobi_ttys_from_cmdline)"
+export TOBI_TTYS
 export TERM="${TERM:-linux}"
 
 TOBI_DEFAULT_MANIFEST_URL="https://raw.githubusercontent.com/Grippy98/TOBI/master/tobi/sample/catalog.json"
 TOBI_MANIFEST_SOURCE="$(cmdline_value tobi.manifest || true)"
 TOBI_MANIFEST_SOURCE="${TOBI_MANIFEST_SOURCE:-${TOBI_MANIFEST_URL:-$TOBI_DEFAULT_MANIFEST_URL}}"
+TOBI_EXTRA_ARGS="$(tobi_extra_args_from_cmdline)"
+export TOBI_EXTRA_ARGS
 
 start_debug_shell
 
-while true; do
-    echo "Starting TOBI on $TOBI_TTY" >/dev/console
-    /usr/bin/tobi \
-        --manifest "$TOBI_MANIFEST_SOURCE" \
-        --mode live \
-        --allow-write \
-        <"$TOBI_TTY" >"$TOBI_TTY" 2>&1
+primary_tty=""
+for tty in $TOBI_TTYS; do
+    if [ -z "$primary_tty" ]; then
+        primary_tty="$tty"
+        continue
+    fi
 
-    rc="$?"
-    echo "TOBI exited with status $rc; starting recovery shell on /dev/console." >/dev/console
+    start_tobi_on_tty_forever "$tty" &
+done
+
+while true; do
+    if [ -n "$primary_tty" ]; then
+        start_tobi_on_tty "$primary_tty"
+        rc="$?"
+        echo "TOBI on $primary_tty exited with status $rc; starting recovery shell on /dev/console." >/dev/console
+    else
+        echo "No TOBI TTYs configured; starting recovery shell on /dev/console." >/dev/console
+    fi
+
     /bin/sh </dev/console >/dev/console 2>&1
 done

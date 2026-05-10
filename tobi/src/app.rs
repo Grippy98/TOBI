@@ -58,18 +58,17 @@ pub struct RunnerGame {
     runner_y: i16,
     velocity: i16,
     viewport_width: i16,
-    obstacles: Vec<Obstacle>,
-    crashed: bool,
+    obstacles: Vec<RunnerObstacle>,
+    next_obstacle: usize,
 }
 
-#[derive(Clone, Debug)]
-pub struct Obstacle {
-    pub x: i16,
-    pub width: i16,
-    pub kind: ObstacleKind,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RunnerObstacle {
+    x: i16,
+    kind: ObstacleKind,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObstacleKind {
     Cactus,
     Rock,
@@ -103,6 +102,7 @@ pub struct App {
     runner: RunnerGame,
     system_status: SystemStatus,
     system_status_refreshed_at: Option<Instant>,
+    system_status_override: Option<SystemStatus>,
 }
 
 impl App {
@@ -153,6 +153,7 @@ impl App {
             runner: RunnerGame::default(),
             system_status: read_system_status(),
             system_status_refreshed_at: Some(Instant::now()),
+            system_status_override: None,
         }
     }
 
@@ -277,6 +278,15 @@ impl App {
 
     pub fn system_status(&self) -> &SystemStatus {
         &self.system_status
+    }
+
+    pub fn start_proxy_setup_test(&mut self, warning: String) {
+        self.system_status_override = Some(proxy_test_system_status());
+        self.refresh_system_status_now();
+        self.start_proxy_config();
+        self.warning = Some(warning);
+        self.status =
+            "Connectivity test mode: set UTC time, then enter a proxy URL to retry.".to_string();
     }
 
     pub fn can_quit(&self) -> bool {
@@ -482,11 +492,11 @@ impl App {
     pub fn start_proxy_config(&mut self) {
         self.warning = None;
         self.proxy_config_field = ProxyConfigField::Time;
-        self.proxy_time_input = current_utc_datetime_input();
-        self.proxy_input = self.proxy_url.clone().unwrap_or_default();
+        self.proxy_time_input.clear();
+        self.proxy_input.clear();
         self.screen = Screen::ProxyConfig;
-        self.status = "Confirm UTC time first, then enter a proxy URL to retry the online catalog."
-            .to_string();
+        self.status =
+            "Enter UTC time first, then enter a proxy URL to retry the online catalog.".to_string();
     }
 
     pub fn cancel_proxy_config(&mut self) {
@@ -512,6 +522,14 @@ impl App {
                 self.proxy_input.pop();
             }
         }
+    }
+
+    pub fn set_proxy_time_input(&mut self, value: impl Into<String>) {
+        self.proxy_time_input = value.into();
+    }
+
+    pub fn set_proxy_input(&mut self, value: impl Into<String>) {
+        self.proxy_input = value.into();
     }
 
     pub fn next_proxy_field(&mut self) {
@@ -552,8 +570,7 @@ impl App {
             self.proxy_config_field = ProxyConfigField::Time;
             return;
         }
-        self.system_status = read_system_status();
-        self.system_status_refreshed_at = Some(Instant::now());
+        self.refresh_system_status_now();
 
         let proxy = self.proxy_input.trim().to_string();
         let proxy = (!proxy.is_empty()).then_some(proxy);
@@ -672,6 +689,11 @@ impl App {
     }
 
     pub fn refresh_system_status_if_due(&mut self) {
+        if self.system_status_override.is_some() {
+            self.refresh_system_status_now();
+            return;
+        }
+
         let now = Instant::now();
         let should_refresh = self
             .system_status_refreshed_at
@@ -681,6 +703,14 @@ impl App {
             self.system_status = read_system_status();
             self.system_status_refreshed_at = Some(now);
         }
+    }
+
+    fn refresh_system_status_now(&mut self) {
+        self.system_status = self
+            .system_status_override
+            .clone()
+            .unwrap_or_else(read_system_status);
+        self.system_status_refreshed_at = Some(Instant::now());
     }
 
     pub fn runner_jump_or_restart(&mut self) {
@@ -753,15 +783,31 @@ impl App {
 
 impl Default for RunnerGame {
     fn default() -> Self {
-        Self {
+        let mut game = Self {
             tick: 0,
             score: 0,
             runner_y: 0,
             velocity: 0,
             viewport_width: 80,
             obstacles: Vec::new(),
-            crashed: false,
-        }
+            next_obstacle: 0,
+        };
+        game.reset_obstacles();
+        game
+    }
+}
+
+impl RunnerObstacle {
+    pub(crate) fn new(x: i16, kind: ObstacleKind) -> Self {
+        Self { x, kind }
+    }
+
+    pub fn x(&self) -> i16 {
+        self.x
+    }
+
+    pub fn kind(&self) -> ObstacleKind {
+        self.kind
     }
 }
 
@@ -774,21 +820,18 @@ impl RunnerGame {
         self.runner_y
     }
 
-    pub fn obstacles(&self) -> &[Obstacle] {
+    pub fn obstacles(&self) -> &[RunnerObstacle] {
         &self.obstacles
     }
 
-    pub fn crashed(&self) -> bool {
-        self.crashed
-    }
-
     fn tick(&mut self) {
-        if self.crashed {
-            return;
-        }
-
         self.tick = self.tick.saturating_add(1);
         self.score = self.score.saturating_add(1);
+
+        for obstacle in &mut self.obstacles {
+            obstacle.x -= 1;
+        }
+        self.recycle_obstacles();
 
         if self.runner_y > 0 || self.velocity > 0 {
             self.runner_y += self.velocity;
@@ -798,57 +841,60 @@ impl RunnerGame {
                 self.velocity = 0;
             }
         }
-
-        for obstacle in &mut self.obstacles {
-            obstacle.x -= 1;
-        }
-        self.obstacles
-            .retain(|obstacle| obstacle.x + obstacle.width > 0);
-
-        if self.should_spawn_obstacle() {
-            let kind = if (self.tick / 29).is_multiple_of(2) {
-                ObstacleKind::Cactus
-            } else {
-                ObstacleKind::Rock
-            };
-            self.obstacles.push(Obstacle {
-                x: self.spawn_x(),
-                width: 2 + ((self.tick / 37) % 2) as i16,
-                kind,
-            });
-        }
-
-        self.crashed = self.obstacles.iter().any(|obstacle| {
-            obstacle.x <= 5 && obstacle.x + obstacle.width >= 4 && self.runner_y == 0
-        });
     }
 
     fn jump_or_restart(&mut self) {
-        if self.crashed {
-            *self = Self::default();
-            return;
-        }
-
         if self.runner_y == 0 {
             self.velocity = 5;
         }
     }
 
-    fn should_spawn_obstacle(&self) -> bool {
-        if self.tick < 8 {
-            return false;
-        }
-        let interval = 28_u64.saturating_sub((self.score / 180).min(10));
-        self.tick % interval == 0
-    }
-
     fn set_viewport_width(&mut self, width: u16) {
         let install_popup_width = i16::try_from(width.saturating_mul(72) / 100).unwrap_or(80);
         self.viewport_width = install_popup_width.saturating_sub(4).max(32);
+        if self.obstacles.is_empty() {
+            self.reset_obstacles();
+        }
     }
 
-    fn spawn_x(&self) -> i16 {
-        self.viewport_width.saturating_sub(6).max(24)
+    fn reset_obstacles(&mut self) {
+        self.next_obstacle = 0;
+        let visible_start = (self.viewport_width / 2).max(18);
+        self.obstacles = vec![
+            self.next_runner_obstacle_at(visible_start + 4),
+            self.next_runner_obstacle_at(self.viewport_width + 8),
+            self.next_runner_obstacle_at(self.viewport_width + 34),
+        ];
+    }
+
+    fn recycle_obstacles(&mut self) {
+        let mut next_x = self
+            .obstacles
+            .iter()
+            .map(|obstacle| obstacle.x)
+            .max()
+            .unwrap_or(self.viewport_width)
+            .max(self.viewport_width)
+            + 24;
+
+        for index in 0..self.obstacles.len() {
+            if self.obstacles[index].x >= -8 {
+                continue;
+            }
+
+            self.obstacles[index] = self.next_runner_obstacle_at(next_x);
+            next_x += 24;
+        }
+    }
+
+    fn next_runner_obstacle_at(&mut self, x: i16) -> RunnerObstacle {
+        let kind = if self.next_obstacle.is_multiple_of(2) {
+            ObstacleKind::Cactus
+        } else {
+            ObstacleKind::Rock
+        };
+        self.next_obstacle = self.next_obstacle.saturating_add(1);
+        RunnerObstacle::new(x, kind)
     }
 }
 
@@ -925,6 +971,15 @@ fn read_system_status() -> SystemStatus {
             .unwrap_or_else(|| "time unavailable".to_string()),
         ip,
         ethernet,
+    }
+}
+
+fn proxy_test_system_status() -> SystemStatus {
+    let ip = "192.168.1.50".to_string();
+    SystemStatus {
+        time: format!("{} UTC", current_utc_datetime_input()),
+        ethernet: format!("connected (eth0 {ip}, DHCP test)"),
+        ip,
     }
 }
 
@@ -1460,6 +1515,42 @@ mod tests {
     }
 
     #[test]
+    fn runner_tick_moves_obstacles_toward_runner() {
+        let mut runner = RunnerGame::default();
+        let before = runner
+            .obstacles()
+            .iter()
+            .map(RunnerObstacle::x)
+            .collect::<Vec<_>>();
+
+        runner.tick();
+
+        let after = runner
+            .obstacles()
+            .iter()
+            .map(RunnerObstacle::x)
+            .collect::<Vec<_>>();
+        assert_eq!(before.len(), after.len());
+        assert!(
+            before
+                .iter()
+                .zip(after.iter())
+                .all(|(before, after)| after < before)
+        );
+    }
+
+    #[test]
+    fn runner_jump_does_not_move_obstacles() {
+        let mut runner = RunnerGame::default();
+        let before = runner.obstacles().to_vec();
+
+        runner.jump_or_restart();
+
+        assert_eq!(runner.runner_y(), 0);
+        assert_eq!(runner.obstacles(), before.as_slice());
+    }
+
+    #[test]
     fn proxy_config_prompts_for_time_before_proxy() {
         let mut app = App::new(
             catalog(),
@@ -1475,8 +1566,8 @@ mod tests {
         app.start_proxy_config();
 
         assert_eq!(app.proxy_config_field, ProxyConfigField::Time);
-        assert!(validate_utc_datetime_input(&app.proxy_time_input).is_ok());
-        assert_eq!(app.proxy_input, "http://proxy.example.com:8080");
+        assert!(app.proxy_time_input.is_empty());
+        assert!(app.proxy_input.is_empty());
     }
 
     #[test]
@@ -1519,6 +1610,30 @@ mod tests {
 
         assert_eq!(app.proxy_config_field, ProxyConfigField::Time);
         assert!(app.warning.is_some());
+    }
+
+    #[test]
+    fn proxy_setup_test_starts_on_time_field_with_dhcp_status() {
+        let mut app = App::new(
+            catalog(),
+            board(),
+            targets(),
+            RunMode::Mock,
+            false,
+            "https://example.invalid/catalog.json".to_string(),
+            None,
+            None,
+        );
+
+        app.start_proxy_setup_test("test catalog failure".to_string());
+
+        assert_eq!(app.screen, Screen::ProxyConfig);
+        assert_eq!(app.proxy_config_field, ProxyConfigField::Time);
+        assert_eq!(app.system_status.ip, "192.168.1.50");
+        assert!(app.system_status.ethernet.contains("DHCP test"));
+        assert!(app.proxy_time_input.is_empty());
+        assert!(app.proxy_input.is_empty());
+        assert_eq!(app.warning.as_deref(), Some("test catalog failure"));
     }
 
     #[test]

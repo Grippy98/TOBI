@@ -59,6 +59,12 @@ No downloadable-image catalog is embedded into the initramfs. If the hosted cata
 
 If the network is present but a proxy is required, the TUI recovery flow asks the user to set UTC system time first, then enter the proxy URL before retrying the hosted catalog.
 
+To force that proxy/time path for board testing, add this kernel argument:
+
+```text
+tobi.test_proxy_setup=1
+```
+
 Build or provide an AArch64 Linux `tobi` binary and point Yocto at it:
 
 ```sh
@@ -67,6 +73,54 @@ MACHINE=am62pxx-evm bitbake tobi-initramfs
 ```
 
 Set `MACHINE` to any entry from the board matrix to build that board's initramfs or SD-card image.
+
+On x86_64 Linux hosts, the recommended Docker flow keeps BitBake native to the host and only cross-compiles the standalone `tobi` app to AArch64:
+
+```sh
+./yocto/scripts/build-tobi-ubuntu-x86_64.sh
+```
+
+This writes:
+
+```text
+out/aarch64-linux/tobi
+```
+
+Cargo dependencies and build outputs are cached under `out/.cache/ubuntu-x86_64-tobi-cross` so repeat builds are faster. Override `OUT_DIR`, `CACHE_DIR`, `IMAGE`, or `TARGET` if you want different paths, a different local builder tag, or another Rust target.
+
+Use that file as `TOBI_PREBUILT` for Yocto integration.
+
+The full initramfs can be built from an x86_64 Linux host with:
+
+```sh
+./yocto/scripts/build-tobi-initramfs-ubuntu-x86_64.sh
+```
+
+This writes copied artifacts to:
+
+```text
+out/yocto/tobi-initramfs-am62pxx-evm.rootfs.cpio.xz
+```
+
+To build a user-flashable two-part SD-card image:
+
+```sh
+./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+To build one specific board:
+
+```sh
+MACHINE=am62axx-evm ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+To build every currently defined board image:
+
+```sh
+./yocto/scripts/build-tobi-all-sd-images-ubuntu-x86_64.sh
+```
+
+The x86_64 helper keeps the TI SDK checkout, downloads, sstate cache, and build home in Docker named volumes prefixed with `tobi-x86_64-yocto-`.
 
 On Apple silicon, the Rust app can be built inside native ARM64 Ubuntu Docker without Rosetta:
 
