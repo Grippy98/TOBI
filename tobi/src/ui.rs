@@ -61,7 +61,7 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     };
     let title = Line::from(vec![
         Span::styled(
-            "TOBI",
+            app.product_name(),
             Style::default()
                 .fg(TI_WHITE)
                 .bg(TI_RED)
@@ -136,12 +136,17 @@ fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
             Line::from("No network? Attach FAT32 USB media with a compatible image."),
         ]);
     } else {
+        let access_line = if app.lite_mode() {
+            "TOBI-lite is serial-console only; HDMI remains unused to conserve RAM."
+        } else {
+            "TOBI can be used with an external display or from the serial console."
+        };
         lines.extend([
             Line::from("Pick and flash a fresh OS image from the internet,"),
             Line::from("or install a compatible local image from attached media."),
             Line::from(""),
             Line::from("Please plug in an Ethernet cable and keyboard to proceed."),
-            Line::from("TOBI can be used with an external display or from the serial console."),
+            Line::from(access_line),
             Line::from(""),
             Line::from("If no network is available, plug in a FAT32-formatted USB drive"),
             Line::from("containing compatible image files and flash that way."),
@@ -181,11 +186,15 @@ fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
 fn welcome_intro_lines(app: &App) -> Vec<Line<'static>> {
     vec![
         Line::from(Span::styled(
-            "Welcome to TOBI",
+            format!("Welcome to {}", app.product_name()),
             Style::default().fg(TI_RED).add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
-            "Texas Instruments Out of Box Installer",
+            if app.lite_mode() {
+                "Texas Instruments Out of Box Installer - low-memory serial edition"
+            } else {
+                "Texas Instruments Out of Box Installer"
+            },
             Style::default().fg(TI_WHITE).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),

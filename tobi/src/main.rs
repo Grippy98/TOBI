@@ -59,6 +59,9 @@ struct Args {
     serial_ui: bool,
 
     #[arg(long)]
+    lite: bool,
+
+    #[arg(long)]
     test_proxy_setup: bool,
 }
 
@@ -88,6 +91,7 @@ fn main() -> anyhow::Result<()> {
     let run_mode = RunMode::from(args.mode);
     let serial_ui = args.serial_ui;
     let use_alt_screen = !args.no_alt_screen;
+    let lite = args.lite;
     let test_proxy_setup = args.test_proxy_setup;
     let (catalog, warning) = load_startup_catalog(&args)?;
     let board = board::detect_board(run_mode, &catalog);
@@ -103,6 +107,7 @@ fn main() -> anyhow::Result<()> {
         args.proxy,
         warning,
     );
+    app.set_lite_mode(lite);
     if test_proxy_setup {
         app.start_proxy_setup_test(proxy_setup_test_warning());
     }
@@ -171,6 +176,13 @@ mod tests {
         let args = Args::parse_from(["tobi", "--mode", "mock", "--test-proxy-setup"]);
         assert_eq!(args.mode, CliRunMode::Mock);
         assert!(args.test_proxy_setup);
+    }
+
+    #[test]
+    fn lite_mode_is_available_for_serial_low_memory_images() {
+        let args = Args::parse_from(["tobi", "--lite", "--serial-ui"]);
+        assert!(args.lite);
+        assert!(args.serial_ui);
     }
 }
 
@@ -456,7 +468,12 @@ fn serial_handle_list_command(app: &mut App, command: &str) {
 
 fn serial_render(app: &App) -> anyhow::Result<()> {
     let mut out = io::stdout();
-    write!(out, "\r\n\r\n=== TOBI {:?} ===\r\n", app.screen())?;
+    write!(
+        out,
+        "\r\n\r\n=== {} {:?} ===\r\n",
+        app.product_name(),
+        app.screen()
+    )?;
 
     if app.has_warning() {
         let warning = app.warning().unwrap_or_default();

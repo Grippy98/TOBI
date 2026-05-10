@@ -120,7 +120,21 @@ To build every currently defined board image:
 ./yocto/scripts/build-tobi-all-sd-images-ubuntu-x86_64.sh
 ```
 
+The all-board script builds regular `tobi-sd-image` artifacts for every machine except `am62xxsip-evm`; that board is built as `tobi-lite-sd-image`.
+
 The x86_64 helper keeps the TI SDK checkout, downloads, sstate cache, and build home in Docker named volumes prefixed with `tobi-x86_64-yocto-`.
+
+### TOBI-lite For SK-AM62-SIP
+
+`SK-AM62-SIP` / `am62xxsip-evm` can be built with the experimental **TOBI-lite** target:
+
+```sh
+./yocto/scripts/build-tobi-lite-sd-image-ubuntu-x86_64.sh
+```
+
+TOBI-lite is serial-console only and uses `tobi.lite=1`, `tobi.ttys=/dev/ttyS2`, and `cma=0` in `uEnv.txt`. It keeps the AM62-SIP DTB (`k3-am6254atl-sk.dtb`) and prunes the initramfs module tree to the eMMC/SD, USB storage/HID, FAT/ext4, and CPSW Ethernet modules needed for installer use.
+
+The xz memory guard is intentionally relaxed in TOBI-lite so `.wic.xz` images can be tested on 256 MiB boards. The UI reports the gzip-sized working-set estimate for xz and does not block flashing on that estimate. Treat this as a hardware validation mode; if xz proves unreliable, publish AM62-SIP catalog entries as `.wic.gz` or low-window `.wic.zst`.
 
 On Apple silicon, the Rust app can be built inside native ARM64 Ubuntu Docker without Rosetta:
 
@@ -170,12 +184,22 @@ To build every currently defined board image:
 ./yocto/scripts/build-tobi-all-sd-images-ubuntu-arm64.sh
 ```
 
+The ARM64 all-board script follows the same rule: regular images for all machines except `am62xxsip-evm`, which is built as TOBI-lite.
+
 This writes:
 
 ```text
 out/yocto/tobi-sd-image-<machine>.rootfs.wic.xz
 out/yocto/tobi-sd-image-<machine>.rootfs.wic.bmap
 ```
+
+The Apple silicon TOBI-lite wrapper is:
+
+```sh
+./yocto/scripts/build-tobi-lite-sd-image-ubuntu-arm64.sh
+```
+
+It writes `tobi-lite-*am62xxsip-evm*` artifacts under `out/yocto`.
 
 The first successful SK-AM62P-LP build produced a 24 MiB compressed initramfs, 102 MiB uncompressed:
 

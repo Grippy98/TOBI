@@ -10,6 +10,7 @@ SSTATE_VOLUME="${SSTATE_VOLUME:-tobi-x86_64-yocto-sstate}"
 HOME_VOLUME="${HOME_VOLUME:-tobi-x86_64-yocto-home}"
 MACHINE="${MACHINE:-am62pxx-evm}"
 SDK_CONFIG="${SDK_CONFIG:-processor-sdk-master-12.00.00.07.04-config.txt}"
+BITBAKE_TARGET="${BITBAKE_TARGET:-tobi-initramfs}"
 
 if [[ ! -x "$OUT_DIR/tobi" ]]; then
   echo "Missing $OUT_DIR/tobi; run yocto/scripts/build-tobi-ubuntu-x86_64.sh first." >&2
@@ -44,6 +45,7 @@ docker run --rm \
   -e HOME=/yocto/home \
   -e MACHINE="$MACHINE" \
   -e SDK_CONFIG="$SDK_CONFIG" \
+  -e BITBAKE_TARGET="$BITBAKE_TARGET" \
   -e TISDK_DIR=/yocto/tisdk \
   -e DL_DIR=/yocto/downloads \
   -e SSTATE_DIR=/yocto/sstate-cache \
@@ -61,7 +63,7 @@ docker run --rm \
     mkdir -p "$HOME" /workspace/out/yocto
     git config --global user.email "tobi-builder@example.invalid"
     git config --global user.name "TOBI Builder"
-    ./yocto/scripts/bootstrap-tobi-yocto.sh
-    find "$TISDK_DIR/build" -path "*deploy*images*" -name "tobi-initramfs*.cpio.xz" \
+    ./yocto/scripts/bootstrap-tobi-yocto.sh "$BITBAKE_TARGET"
+    find "$TISDK_DIR/build" -path "*deploy*images*" -name "tobi*-initramfs*.cpio.xz" \
       -exec cp -f {} /workspace/out/yocto/ \;
   '

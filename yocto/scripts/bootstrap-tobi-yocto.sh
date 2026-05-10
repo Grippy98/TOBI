@@ -43,7 +43,11 @@ fi
 
 if [[ "${FORCE_TOBI_PREBUILT_REBUILD:-0}" == "1" ]]; then
   MACHINE="$MACHINE" bitbake -c cleansstate tobi-prebuilt
-  MACHINE="$MACHINE" bitbake -c clean tobi-initramfs tobi-sd-image
+  clean_targets=(tobi-initramfs tobi-sd-image)
+  if [[ "$MACHINE" == "am62xxsip-evm" || "$BITBAKE_TARGET" == tobi-lite-* ]]; then
+    clean_targets+=(tobi-lite-initramfs tobi-lite-sd-image)
+  fi
+  MACHINE="$MACHINE" bitbake -c clean "${clean_targets[@]}"
 fi
 
 MACHINE="$MACHINE" bitbake "$BITBAKE_TARGET"

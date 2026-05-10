@@ -22,6 +22,13 @@ cmdline_has() {
     esac
 }
 
+tobi_lite_enabled() {
+    [ "${TOBI_LITE:-}" = "1" ] && return 0
+    cmdline_has "tobi.lite=1" && return 0
+    cmdline_has "tobi.lite" && return 0
+    return 1
+}
+
 cmdline_value() {
     key="$1"
     for arg in $cmdline; do
@@ -46,6 +53,46 @@ load_modules() {
 
     # These are intentionally best-effort. The exact built-in/module split can
     # differ across TI SDK kernels, and missing modules should not block TOBI.
+    for module in \
+        mmc-block \
+        sdhci \
+        sdhci-pltfm \
+        sdhci-am654 \
+        cqhci \
+        sd-mod \
+        scsi-mod \
+        xhci-hcd \
+        xhci-plat-hcd \
+        dwc3 \
+        dwc3-am62 \
+        usb-storage \
+        uas \
+        usbhid \
+        hid-generic \
+        vfat \
+        fat \
+        nls-cp437 \
+        nls-iso8859-1 \
+        ext4 \
+        jbd2 \
+        mbcache \
+        phy-gmii-sel \
+        davinci-mdio \
+        mdio-bitbang \
+        of-mdio \
+        fixed-phy \
+        micrel \
+        dp83867 \
+        dp83869 \
+        realtek \
+        motorcomm \
+        ti-am65-cpsw-nuss
+    do
+        modprobe "$module" >/dev/null 2>&1 || true
+    done
+
+    tobi_lite_enabled && return 0
+
     # Bridge/connector modules need to be available before tidss probes, since
     # there is no udev in this initramfs to retry deferred display probes.
     for module in \
@@ -69,13 +116,7 @@ load_modules() {
         sii902x \
         it66121 \
         tidss \
-        fbcon \
-        usbhid \
-        hid-generic \
-        usb-storage \
-        xhci-hcd \
-        xhci-plat-hcd \
-        sd-mod
+        fbcon
     do
         modprobe "$module" >/dev/null 2>&1 || true
     done
@@ -186,7 +227,11 @@ tobi_ttys_from_cmdline() {
     fi
 
     if [ -z "$ttys" ]; then
-        ttys="/dev/tty0,/dev/ttyS2"
+        if tobi_lite_enabled; then
+            ttys="/dev/ttyS2"
+        else
+            ttys="/dev/tty0,/dev/ttyS2"
+        fi
     fi
 
     echo "$ttys" | tr ',' ' '
@@ -199,6 +244,10 @@ tobi_extra_args_from_cmdline() {
         cmdline_has "tobi.test_proxy_setup=1" || \
         cmdline_has "tobi.test_proxy_setup"; then
         args="$args --test-proxy-setup"
+    fi
+
+    if tobi_lite_enabled; then
+        args="$args --lite"
     fi
 
     echo "$args"
@@ -285,6 +334,10 @@ start_tobi_on_tty_forever() {
         sleep 1
     done
 }
+
+if tobi_lite_enabled; then
+    export TOBI_LITE=1
+fi
 
 quiet_kernel_console
 load_modules
