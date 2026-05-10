@@ -137,7 +137,7 @@ fn render_welcome(frame: &mut Frame, app: &App, area: Rect) {
         ]);
     } else {
         let access_line = if app.lite_mode() {
-            "TOBI-lite is serial-console only; HDMI remains unused to conserve RAM."
+            "TOBI-lite uses HDMI for the primary UI and keeps serial available."
         } else {
             "TOBI can be used with an external display or from the serial console."
         };
@@ -191,7 +191,7 @@ fn welcome_intro_lines(app: &App) -> Vec<Line<'static>> {
         )),
         Line::from(Span::styled(
             if app.lite_mode() {
-                "Texas Instruments Out of Box Installer - low-memory serial edition"
+                "Texas Instruments Out of Box Installer - low-memory edition"
             } else {
                 "Texas Instruments Out of Box Installer"
             },

@@ -193,19 +193,19 @@ The SD image is user-flashable. It boots TOBI into RAM and leaves the target eMM
 
 ## TOBI-lite For AM62-SIP Low Memory Testing
 
-`SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite is serial-console only, even when HDMI is connected, and is intended to conserve RAM before flashing eMMC.
+`SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite still drives the HDMI framebuffer UI and keeps the serial console available, while trimming the rest of the installer environment before flashing eMMC.
 
 The low-memory boot path uses:
 
 ```text
 console=ttyS2,115200n8
-tobi.ttys=/dev/ttyS2
+console=tty0
+tobi.ttys=/dev/tty0,/dev/ttyS2
 tobi.lite=1
-cma=0
-modprobe.blacklist=tidss,drm,drm_kms_helper,drm_client_lib,drm_client_modeset,drm_display_helper,fbcon
+cma=32M
 ```
 
-The initramfs keeps AM62 essentials for eMMC/SD, USB mass storage/HID, FAT/ext4 local media, and CPSW Ethernet while skipping the active display module path. The lite recipe starts from TI `kernel-modules` and prunes the initramfs module tree to the AM62-SIP allowlist plus dependencies from `modules.dep`.
+The initramfs keeps AM62 essentials for eMMC/SD, USB mass storage/HID, FAT/ext4 local media, CPSW Ethernet, and the DRM/TIDSS display path needed for HDMI. The lite recipe starts from TI `kernel-modules` and prunes the initramfs module tree to the AM62-SIP allowlist plus dependencies from `modules.dep`.
 
 For hardware testing, TOBI-lite deliberately relaxes the `.wic.xz` RAM guard. Normal TOBI budgets xz images conservatively, but TOBI-lite reports an xz working set at the gzip-sized estimate and does not block flashing solely on that estimate. This is to verify whether the existing TI `.wic.xz` images can actually stream on 256 MiB hardware; if they are unstable, the catalog should publish AM62-SIP images as `.wic.gz` or low-window `.wic.zst`.
 

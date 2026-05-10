@@ -183,7 +183,7 @@ impl App {
         self.lite_mode = lite_mode;
         set_lite_xz_memory_guard(lite_mode);
         if lite_mode {
-            self.status = "TOBI-lite serial installer ready. Press Enter to continue.".to_string();
+            self.status = "TOBI-lite installer ready. Press Enter to continue.".to_string();
         }
     }
 

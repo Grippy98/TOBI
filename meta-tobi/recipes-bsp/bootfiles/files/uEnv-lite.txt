@@ -6,4 +6,4 @@ name_initramfs=uInitrd
 
 uenvcmd=setexpr fdtfile sub ti/ti ti; run bootcmd_ti_mmc
 
-optargs=console=ttyS2,115200n8 quiet loglevel=1 cma=0 vt.global_cursor_default=0 modprobe.blacklist=tidss,drm,drm_kms_helper,drm_client_lib,drm_client_modeset,drm_display_helper,fbcon tobi.ttys=/dev/ttyS2 tobi.lite=1
+optargs=vt.global_cursor_default=1 console=ttyS2,115200n8 console=tty0 quiet loglevel=1 cma=32M tobi.ttys=/dev/tty0,/dev/ttyS2 tobi.lite=1

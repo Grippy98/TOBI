@@ -86,7 +86,7 @@ TOBI streams images directly to the target media. The full downloaded or local i
 `--lite` labels the app as **TOBI-lite** and enables the low-memory xz test policy used by the AM62-SIP Yocto image:
 
 ```sh
-cargo run -- --mode mock --serial-ui --lite
+cargo run -- --mode mock --lite
 ```
 
 In lite mode, `.wic.xz` images use the gzip-sized RAM estimate and the xz guard is not enforced. This exists so 256 MiB AM62-SIP hardware can prove whether current TI `.wic.xz` images actually stream successfully. The production low-memory answer may still be `.wic.gz` or low-window `.wic.zst` catalog entries if xz is unstable.

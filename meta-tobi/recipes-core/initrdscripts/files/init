@@ -91,8 +91,6 @@ load_modules() {
         modprobe "$module" >/dev/null 2>&1 || true
     done
 
-    tobi_lite_enabled && return 0
-
     # Bridge/connector modules need to be available before tidss probes, since
     # there is no udev in this initramfs to retry deferred display probes.
     for module in \
@@ -227,11 +225,7 @@ tobi_ttys_from_cmdline() {
     fi
 
     if [ -z "$ttys" ]; then
-        if tobi_lite_enabled; then
-            ttys="/dev/ttyS2"
-        else
-            ttys="/dev/tty0,/dev/ttyS2"
-        fi
+        ttys="/dev/tty0,/dev/ttyS2"
     fi
 
     echo "$ttys" | tr ',' ' '

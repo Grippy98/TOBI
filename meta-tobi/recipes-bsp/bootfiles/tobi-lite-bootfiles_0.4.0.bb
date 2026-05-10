@@ -1,5 +1,5 @@
 SUMMARY = "TOBI-lite boot partition configuration"
-DESCRIPTION = "Deploys serial-only U-Boot environment overrides for TOBI-lite SD-card images."
+DESCRIPTION = "Deploys low-memory U-Boot environment overrides for TOBI-lite SD-card images."
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 

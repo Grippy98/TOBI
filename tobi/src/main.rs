@@ -179,10 +179,9 @@ mod tests {
     }
 
     #[test]
-    fn lite_mode_is_available_for_serial_low_memory_images() {
-        let args = Args::parse_from(["tobi", "--lite", "--serial-ui"]);
+    fn lite_mode_is_available_for_low_memory_images() {
+        let args = Args::parse_from(["tobi", "--lite"]);
         assert!(args.lite);
-        assert!(args.serial_ui);
     }
 }
 
