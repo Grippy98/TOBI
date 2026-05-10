@@ -193,7 +193,7 @@ The SD image is user-flashable. It boots TOBI into RAM and leaves the target eMM
 
 ## TOBI-lite For AM62-SIP Low Memory Testing
 
-`SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite still drives the HDMI framebuffer UI and keeps the serial console available, while trimming the rest of the installer environment before flashing eMMC.
+`SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite still drives the HDMI framebuffer UI while trimming the rest of the installer environment before flashing eMMC.
 
 The low-memory boot path uses:
 
@@ -206,6 +206,8 @@ cma=32M
 ```
 
 The initramfs keeps AM62 essentials for eMMC/SD, USB mass storage/HID, FAT/ext4 local media, CPSW Ethernet, and the DRM/TIDSS display path needed for HDMI. The lite recipe starts from TI `kernel-modules` and prunes the initramfs module tree to the AM62-SIP allowlist plus dependencies from `modules.dep`.
+
+Only one TOBI app runs by default. HDMI owns the active installer; the serial console prints a lightweight prompt. If the user types `SERIAL`, the initramfs stops the HDMI TOBI process and starts TOBI on the serial console instead, then restarts HDMI mode when serial TOBI exits.
 
 For hardware testing, TOBI-lite deliberately relaxes the `.wic.xz` RAM guard. Normal TOBI budgets xz images conservatively, but TOBI-lite reports an xz working set at the gzip-sized estimate and does not block flashing solely on that estimate. This is to verify whether the existing TI `.wic.xz` images can actually stream on 256 MiB hardware; if they are unstable, the catalog should publish AM62-SIP images as `.wic.gz` or low-window `.wic.zst`.
 

@@ -329,6 +329,64 @@ start_tobi_on_tty_forever() {
     done
 }
 
+kill_running_tobi() {
+    for proc_dir in /proc/[0-9]*; do
+        [ -d "$proc_dir" ] || continue
+        pid="${proc_dir##*/}"
+        cmd="$(tr '\000' ' ' <"$proc_dir/cmdline" 2>/dev/null || true)"
+        case "$cmd" in
+            *"/usr/bin/tobi"*)
+                kill "$pid" 2>/dev/null || true
+                ;;
+        esac
+    done
+}
+
+start_lite_serial_switcher() {
+    tty="$1"
+
+    case "$tty" in
+        /dev/*) ;;
+        *) tty="/dev/$tty" ;;
+    esac
+
+    [ -c "$tty" ] || {
+        echo "Skipping TOBI-lite serial switch prompt on $tty; device is not available." >/dev/console
+        return 0
+    }
+
+    (
+        stty -F "$tty" sane rows "${TOBI_SERIAL_ROWS:-30}" cols "${TOBI_SERIAL_COLS:-100}" 2>/dev/null || true
+
+        while true; do
+            {
+                printf '\r\nTOBI-lite is running on the HDMI display.\r\n'
+                printf 'Type SERIAL and press Enter to stop HDMI TOBI and run on this serial console.\r\n'
+                printf 'The HDMI UI will restart when serial TOBI exits.\r\n'
+                printf '> '
+            } >"$tty" 2>/dev/null || true
+
+            if ! IFS= read -r command <"$tty"; then
+                sleep 1
+                continue
+            fi
+
+            case "$command" in
+                SERIAL|serial|Serial|S|s)
+                    touch /run/tobi-serial-mode
+                    kill_running_tobi
+                    start_tobi_on_tty "$tty"
+                    rm -f /run/tobi-serial-mode
+                    printf '\r\nSerial TOBI exited. HDMI TOBI will restart.\r\n' >"$tty" 2>/dev/null || true
+                    ;;
+                *)
+                    printf '\r\nUnknown command. Type SERIAL to switch TOBI to this console.\r\n' >"$tty" 2>/dev/null || true
+                    ;;
+            esac
+        done
+    ) &
+}
+
 if tobi_lite_enabled; then
     export TOBI_LITE=1
 fi
@@ -358,13 +416,25 @@ for tty in $TOBI_TTYS; do
         continue
     fi
 
-    start_tobi_on_tty_forever "$tty" &
+    if tobi_lite_enabled; then
+        start_lite_serial_switcher "$tty"
+    else
+        start_tobi_on_tty_forever "$tty" &
+    fi
 done
 
 while true; do
     if [ -n "$primary_tty" ]; then
         start_tobi_on_tty "$primary_tty"
         rc="$?"
+        if tobi_lite_enabled && [ -e /run/tobi-serial-mode ]; then
+            echo "TOBI-lite switched to serial mode; waiting before restarting HDMI UI." >/dev/console
+            while [ -e /run/tobi-serial-mode ]; do
+                sleep 1
+            done
+            echo "TOBI-lite serial mode ended; restarting HDMI UI." >/dev/console
+            continue
+        fi
         echo "TOBI on $primary_tty exited with status $rc; starting recovery shell on /dev/console." >/dev/console
     else
         echo "No TOBI TTYs configured; starting recovery shell on /dev/console." >/dev/console

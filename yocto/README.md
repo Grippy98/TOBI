@@ -132,7 +132,7 @@ The x86_64 helper keeps the TI SDK checkout, downloads, sstate cache, and build 
 ./yocto/scripts/build-tobi-lite-sd-image-ubuntu-x86_64.sh
 ```
 
-TOBI-lite keeps HDMI output enabled and also starts the serial UI. It uses `tobi.lite=1`, `tobi.ttys=/dev/tty0,/dev/ttyS2`, and `cma=32M` in `uEnv.txt`. It keeps the AM62-SIP DTB (`k3-am6254atl-sk.dtb`) and prunes the initramfs module tree to the eMMC/SD, USB storage/HID, FAT/ext4, CPSW Ethernet, and DRM/TIDSS HDMI modules needed for installer use.
+TOBI-lite keeps HDMI output enabled and uses `tobi.lite=1`, `tobi.ttys=/dev/tty0,/dev/ttyS2`, and `cma=32M` in `uEnv.txt`. HDMI runs the only TOBI app by default; the serial console prints a lightweight prompt explaining that typing `SERIAL` stops the HDMI instance and starts TOBI on serial instead. It keeps the AM62-SIP DTB (`k3-am6254atl-sk.dtb`) and prunes the initramfs module tree to the eMMC/SD, USB storage/HID, FAT/ext4, CPSW Ethernet, and DRM/TIDSS HDMI modules needed for installer use.
 
 The xz memory guard is intentionally relaxed in TOBI-lite so `.wic.xz` images can be tested on 256 MiB boards. The UI reports the gzip-sized working-set estimate for xz and does not block flashing on that estimate. Treat this as a hardware validation mode; if xz proves unreliable, publish AM62-SIP catalog entries as `.wic.gz` or low-window `.wic.zst`.
 
