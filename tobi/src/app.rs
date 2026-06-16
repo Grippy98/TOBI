@@ -14,7 +14,7 @@ use crate::custom_image::{
 use crate::device::{DeviceMode, InstallTarget, TargetKind, list_devices};
 use crate::installer::{InstallEvent, InstallRequest, RunMode, reboot_now, start_install};
 use crate::manifest::{self, Catalog, ImageEntry};
-use crate::memory::{MemoryCheck, check_image_memory};
+use crate::memory::{MemoryCheck, check_image_memory, set_lite_xz_memory_guard};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
@@ -81,6 +81,7 @@ pub struct App {
     custom_images: Vec<CustomImage>,
     run_mode: RunMode,
     allow_write: bool,
+    lite_mode: bool,
     manifest_source: String,
     proxy_url: Option<String>,
     proxy_input: String,
@@ -132,6 +133,7 @@ impl App {
             custom_images: Vec::new(),
             run_mode,
             allow_write,
+            lite_mode: false,
             manifest_source,
             proxy_input: proxy_url.clone().unwrap_or_default(),
             proxy_time_input: current_utc_datetime_input(),
@@ -175,6 +177,18 @@ impl App {
 
     pub fn run_mode(&self) -> RunMode {
         self.run_mode
+    }
+
+    pub fn set_lite_mode(&mut self, lite_mode: bool) {
+        self.lite_mode = lite_mode;
+        set_lite_xz_memory_guard(lite_mode);
+        if lite_mode {
+            self.status = "TOBI-lite installer ready. Press Enter to continue.".to_string();
+        }
+    }
+
+    pub fn lite_mode(&self) -> bool {
+        self.lite_mode
     }
 
     pub fn screen(&self) -> Screen {
@@ -683,7 +697,7 @@ impl App {
     }
 
     pub fn tick_runner(&mut self) {
-        if self.screen == Screen::Installing {
+        if self.screen == Screen::Installing && !self.lite_mode {
             self.runner.tick();
         }
     }
@@ -1666,6 +1680,7 @@ mod tests {
                 extract_sha256: None,
                 image_download_size: Some(1),
                 extract_size: Some(1),
+                decoder_memory_size: None,
                 bmap_url: None,
                 signature_url: None,
             }],

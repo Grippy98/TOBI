@@ -240,7 +240,8 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-default-image-am62xxsip-evm-12.00.00.07.04.rootfs.wic.xz",
       "format": "wic.xz",
-      "image_download_size": 1095814640
+      "image_download_size": 1095814640,
+      "decoder_memory_size": 8454776
     },
     {
       "id": "tisdk-debian-trixie-sk-am62-sip-12.00.00.07.04",
@@ -254,7 +255,8 @@
       "channel": "stable",
       "url": "https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-PvdSyIiioq/12.00.00.07.04/tisdk-debian-trixie-sk-am62-sip-12.00.00.07.04-Armbian-26.05.img.xz",
       "format": "img.xz",
-      "image_download_size": 556450072
+      "image_download_size": 556450072,
+      "decoder_memory_size": 8454776
     },
     {
       "id": "tisdk-edgeai-am62a-11.01.07.05",
@@ -1096,7 +1098,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Trixie_vendor_minimal",
       "format": "img.xz",
       "image_download_sha256": "7a2c90c499e3b29d9d2b17b0c99b9028dc23f0690a108885c41ceca9ca903240",
-      "image_download_size": 315417308
+      "image_download_size": 315417308,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-trixie-omv-sk-am62-sip-26.2.1",
@@ -1111,7 +1114,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Trixie_vendor_minimal-omv",
       "format": "img.xz",
       "image_download_sha256": "a4bc1ec9c1b831d2169a1a3fe64264a987d99d388af7ef764737b31e1a88e620",
-      "image_download_size": 461755196
+      "image_download_size": 461755196,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-trixie-homeassistant-sk-am62-sip-26.2.1",
@@ -1126,7 +1130,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Trixie_vendor_server-homeassistant",
       "format": "img.xz",
       "image_download_sha256": "b0a198864775a989c6841ee5cd030865bd56be95fdcc077df11989f912c09383",
-      "image_download_size": 536923712
+      "image_download_size": 536923712,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-trixie-openhab-sk-am62-sip-26.2.1",
@@ -1141,7 +1146,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Trixie_vendor_server-openhab",
       "format": "img.xz",
       "image_download_sha256": "89517334f03661c90a0bc65d90f62e943e1d15f9f85434e6e413b984ff7f595b",
-      "image_download_size": 1266777600
+      "image_download_size": 1266777600,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-noble-gnome-sk-am62-sip-26.2.1",
@@ -1156,7 +1162,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Noble_vendor_gnome",
       "format": "img.xz",
       "image_download_sha256": "6ca6f53b13f77c89365f075f3fc69c783a25fe0283ae9842b0ae6161ab446d42",
-      "image_download_size": 1401348520
+      "image_download_size": 1401348520,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-noble-kde-neon-sk-am62-sip-26.2.1",
@@ -1171,7 +1178,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Noble_vendor_kde-neon",
       "format": "img.xz",
       "image_download_sha256": "efb7a2d380c10f9d5b3fe8ad2685984de7b5f8adc06d8f8298c7612538a0d389",
-      "image_download_size": 1479122868
+      "image_download_size": 1479122868,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-noble-minimal-sk-am62-sip-26.2.1",
@@ -1186,7 +1194,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Noble_vendor_minimal",
       "format": "img.xz",
       "image_download_sha256": "8c2fc71bec5d32b92212f652bb82fbe33128493de7d44f93a5b181bc6cf89081",
-      "image_download_size": 302732416
+      "image_download_size": 302732416,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-resolute-minimal-sk-am62-sip-26.2.5",
@@ -1201,7 +1210,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Resolute_vendor_minimal",
       "format": "img.xz",
       "image_download_sha256": "b93883b10739a94a4929859792edd2464ff85a15aba14b24f62c3327871b2989",
-      "image_download_size": 330619632
+      "image_download_size": 330619632,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-sid-kali-sk-am62-sip-26.2.1",
@@ -1216,7 +1226,8 @@
       "url": "https://dl.armbian.com/sk-am62-sip/Sid_vendor_server-kali",
       "format": "img.xz",
       "image_download_sha256": "a70ba7aa91f84ecdd72099f1f363a4c52d77d59c4d067041179e7cf212b57ac6",
-      "image_download_size": 536189464
+      "image_download_size": 536189464,
+      "decoder_memory_size": 33620600
     },
     {
       "id": "armbian-trixie-minimal-tmds62levm-26.2.1",

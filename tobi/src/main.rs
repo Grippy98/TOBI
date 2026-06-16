@@ -1,5 +1,6 @@
 mod app;
 mod board;
+mod boot_patch;
 mod custom_image;
 mod device;
 mod installer;
@@ -59,6 +60,9 @@ struct Args {
     serial_ui: bool,
 
     #[arg(long)]
+    lite: bool,
+
+    #[arg(long)]
     test_proxy_setup: bool,
 }
 
@@ -103,6 +107,9 @@ fn main() -> anyhow::Result<()> {
         args.proxy,
         warning,
     );
+    if args.lite {
+        app.set_lite_mode(true);
+    }
     if test_proxy_setup {
         app.start_proxy_setup_test(proxy_setup_test_warning());
     }
@@ -171,6 +178,13 @@ mod tests {
         let args = Args::parse_from(["tobi", "--mode", "mock", "--test-proxy-setup"]);
         assert_eq!(args.mode, CliRunMode::Mock);
         assert!(args.test_proxy_setup);
+    }
+
+    #[test]
+    fn lite_mode_is_available_for_low_memory_images() {
+        let args = Args::parse_from(["tobi", "--mode", "mock", "--lite"]);
+        assert_eq!(args.mode, CliRunMode::Mock);
+        assert!(args.lite);
     }
 }
 
