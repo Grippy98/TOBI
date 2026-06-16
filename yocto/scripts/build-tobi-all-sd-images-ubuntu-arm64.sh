@@ -10,12 +10,20 @@ fi
 
 first=1
 for machine in $MACHINES; do
-  echo "==> Building TOBI SD image for MACHINE=$machine"
+  bitbake_target=tobi-sd-image
+  image_name=TOBI
+  if [[ "$machine" == "am62xxsip-evm" ]]; then
+    bitbake_target=tobi-lite-sd-image
+    image_name=TOBI-lite
+  fi
+
+  echo "==> Building $image_name SD image for MACHINE=$machine"
   if [[ "$first" == "1" ]]; then
-    MACHINE="$machine" "$REPO_ROOT/yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh"
+    MACHINE="$machine" BITBAKE_TARGET="$bitbake_target" \
+      "$REPO_ROOT/yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh"
     first=0
   else
-    SKIP_DOCKER_BUILD=1 SKIP_VOLUME_CHOWN=1 MACHINE="$machine" \
+    SKIP_DOCKER_BUILD=1 SKIP_VOLUME_CHOWN=1 MACHINE="$machine" BITBAKE_TARGET="$bitbake_target" \
       "$REPO_ROOT/yocto/scripts/build-tobi-sd-image-ubuntu-arm64.sh"
   fi
 done
