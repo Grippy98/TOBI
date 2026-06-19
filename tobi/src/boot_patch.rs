@@ -1,8 +1,10 @@
 use std::fs;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
 #[cfg(target_os = "linux")]
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 
 use crate::device::{InstallTarget, TargetKind};
 
@@ -170,15 +172,16 @@ fn patch_installed_boot_media_linux(target: &InstallTarget) -> BootPatchReport {
         }
     };
 
-    let mut report = patch_mounted_boot_partition(&mount_dir, &partition).unwrap_or_else(|error| {
-        BootPatchReport::warning(
-            "could not update installed boot files",
-            vec![
-                format!("Partition: {}", partition.display()),
-                format!("Details: {error:#}"),
-            ],
-        )
-    });
+    let mut report = patch_mounted_boot_partition(&mount_dir, &partition, &target.path)
+        .unwrap_or_else(|error| {
+            BootPatchReport::warning(
+                "could not update installed boot files",
+                vec![
+                    format!("Partition: {}", partition.display()),
+                    format!("Details: {error:#}"),
+                ],
+            )
+        });
 
     match mounted.unmount() {
         Ok(()) => {
@@ -201,10 +204,10 @@ fn patch_installed_boot_media_linux(target: &InstallTarget) -> BootPatchReport {
     }
 }
 
-#[cfg(target_os = "linux")]
 fn patch_mounted_boot_partition(
     boot_dir: &Path,
     partition: &Path,
+    target: &Path,
 ) -> anyhow::Result<BootPatchReport> {
     let uenv_path = boot_dir.join("uEnv.txt");
     let original = match fs::read_to_string(&uenv_path) {
@@ -223,27 +226,31 @@ fn patch_mounted_boot_partition(
     };
 
     let plan = patch_plan(style);
+    let mut changed = false;
+    let mut details = vec![format!("Mounted {}", partition.display())];
+
     if original == plan.content {
-        return Ok(BootPatchReport::already_configured(
-            plan.summary,
-            vec![
-                format!("Mounted {}", partition.display()),
-                format!("Verified {}", uenv_path.display()),
-            ],
-        ));
+        details.push(format!("Verified {}", uenv_path.display()));
+    } else {
+        fs::write(&uenv_path, plan.content)
+            .with_context(|| format!("failed to write {}", uenv_path.display()))?;
+        details.push(format!("Updated {}", uenv_path.display()));
+        changed = true;
     }
 
-    fs::write(&uenv_path, plan.content)
-        .with_context(|| format!("failed to write {}", uenv_path.display()))?;
+    if style == BootPatchStyle::ArmbianOrTiDebian {
+        let extlinux_report = patch_armbian_extlinux(boot_dir, target)?;
+        changed |= extlinux_report.changed;
+        details.extend(extlinux_report.details);
+    }
 
-    Ok(BootPatchReport::patched(
-        plan.summary,
-        vec![
-            format!("Mounted {}", partition.display()),
-            format!("Updated {}", uenv_path.display()),
-            plan.detail.to_string(),
-        ],
-    ))
+    details.push(plan.detail.to_string());
+
+    if !changed {
+        return Ok(BootPatchReport::already_configured(plan.summary, details));
+    }
+
+    Ok(BootPatchReport::patched(plan.summary, details))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -262,8 +269,8 @@ fn patch_plan(style: BootPatchStyle) -> PatchPlan {
     match style {
         BootPatchStyle::ArmbianOrTiDebian => PatchPlan {
             content: ARMBIAN_EMMC_UENV,
-            summary: "updated uEnv.txt for eMMC boot on Armbian/TI Debian images",
-            detail: "Set bootpart=0:1, rootfs lookup=mmc 0:2, and mmcdev=0.",
+            summary: "updated boot files for eMMC boot on Armbian/TI Debian images",
+            detail: "Set bootpart=0:1, rootfs lookup=mmc 0:2, mmcdev=0, and added an extlinux eMMC fallback.",
         },
         BootPatchStyle::TiYocto => PatchPlan {
             content: TI_YOCTO_EMMC_UENV,
@@ -271,6 +278,130 @@ fn patch_plan(style: BootPatchStyle) -> PatchPlan {
             detail: "Set mmcdev=0 and rootfs bootpart=0:2.",
         },
     }
+}
+
+struct FilePatchReport {
+    changed: bool,
+    details: Vec<String>,
+}
+
+fn patch_armbian_extlinux(boot_dir: &Path, target: &Path) -> anyhow::Result<FilePatchReport> {
+    let root_spec = root_spec_for_emmc_rootfs(target, 2);
+    let initrd_path = select_armbian_initrd_path(boot_dir);
+    let content = armbian_extlinux_conf(&root_spec, &initrd_path);
+    let extlinux_dir = boot_dir.join("extlinux");
+    let extlinux_path = extlinux_dir.join("extlinux.conf");
+
+    fs::create_dir_all(&extlinux_dir)
+        .with_context(|| format!("failed to create {}", extlinux_dir.display()))?;
+
+    let existing = fs::read_to_string(&extlinux_path).ok();
+    if existing.as_deref() == Some(content.as_str()) {
+        return Ok(FilePatchReport {
+            changed: false,
+            details: vec![
+                format!("Verified {}", extlinux_path.display()),
+                format!("extlinux root={root_spec}"),
+                format!("extlinux initrd={initrd_path}"),
+            ],
+        });
+    }
+
+    fs::write(&extlinux_path, content)
+        .with_context(|| format!("failed to write {}", extlinux_path.display()))?;
+
+    Ok(FilePatchReport {
+        changed: true,
+        details: vec![
+            format!("Updated {}", extlinux_path.display()),
+            format!("extlinux root={root_spec}"),
+            format!("extlinux initrd={initrd_path}"),
+        ],
+    })
+}
+
+fn armbian_extlinux_conf(root_spec: &str, initrd_path: &str) -> String {
+    format!(
+        concat!(
+            "TIMEOUT 30\n",
+            "DEFAULT tobi-emmc\n",
+            "\n",
+            "LABEL tobi-emmc\n",
+            "  MENU LABEL TOBI eMMC boot\n",
+            "  LINUX /Image\n",
+            "  INITRD {initrd_path}\n",
+            "  FDTDIR /dtb\n",
+            "  APPEND console=ttyS2,115200n8 root={root_spec} rw rootfstype=ext4 rootwait vt.global_cursor_default=0\n",
+        ),
+        initrd_path = initrd_path,
+        root_spec = root_spec,
+    )
+}
+
+fn select_armbian_initrd_path(boot_dir: &Path) -> String {
+    let mut candidates = fs::read_dir(boot_dir)
+        .ok()
+        .into_iter()
+        .flat_map(|entries| entries.filter_map(Result::ok))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.starts_with("initrd.img-"))
+        .collect::<Vec<_>>();
+    candidates.sort();
+    candidates
+        .into_iter()
+        .next()
+        .map(|name| format!("/{name}"))
+        .unwrap_or_else(|| "/uInitrd".to_string())
+}
+
+fn root_spec_for_emmc_rootfs(target: &Path, partition_number: u8) -> String {
+    match mbr_partuuid(target, partition_number) {
+        Ok(Some(partuuid)) => format!("PARTUUID={partuuid}"),
+        _ => fallback_root_device(target, partition_number),
+    }
+}
+
+fn mbr_partuuid(target: &Path, partition_number: u8) -> anyhow::Result<Option<String>> {
+    let mut file = fs::File::open(target)
+        .with_context(|| format!("failed to open {} for PARTUUID detection", target.display()))?;
+    let mut sector = [0_u8; 512];
+    file.seek(SeekFrom::Start(0))?;
+    file.read_exact(&mut sector)?;
+
+    if sector[510] != 0x55 || sector[511] != 0xaa {
+        return Ok(None);
+    }
+
+    let partition_index = usize::from(partition_number.saturating_sub(1));
+    if partition_index >= 4 {
+        return Ok(None);
+    }
+
+    let entry_offset = 446 + partition_index * 16;
+    let partition_type = sector[entry_offset + 4];
+    if partition_type == 0 {
+        return Ok(None);
+    }
+
+    let disk_signature = u32::from_le_bytes(sector[440..444].try_into().expect("mbr signature"));
+    if disk_signature == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(format!("{disk_signature:08x}-{partition_number:02x}")))
+}
+
+fn fallback_root_device(target: &Path, partition_number: u8) -> String {
+    let Some(name) = target.file_name().and_then(|name| name.to_str()) else {
+        return format!("/dev/mmcblk0p{partition_number}");
+    };
+    let suffix =
+        if name.starts_with("mmcblk") || name.starts_with("nvme") || name.starts_with("loop") {
+            format!("p{partition_number}")
+        } else {
+            partition_number.to_string()
+        };
+    format!("/dev/{name}{suffix}")
 }
 
 fn detect_boot_patch_style(boot_dir: &Path, uenv: &str) -> Option<BootPatchStyle> {
@@ -487,8 +618,11 @@ mod tests {
             "bootpart=1:1\nfinduuid=part uuid ${boot} 1:2 uuid\nname_rd=uInitrd\n",
         )
         .expect("uenv");
+        fs::write(dir.path().join("initrd.img-6.18-test"), "initrd").expect("initrd");
+        let target = test_target_with_mbr(dir.path());
 
-        let report = patch_mounted_boot_partition_for_test(dir.path());
+        let report = patch_mounted_boot_partition(dir.path(), Path::new("/dev/testp1"), &target)
+            .expect("patch");
 
         assert_eq!(report.status, BootPatchStatus::Patched);
         let patched = fs::read_to_string(dir.path().join("uEnv.txt")).expect("patched uenv");
@@ -496,6 +630,12 @@ mod tests {
         assert!(patched.contains("finduuid=part uuid mmc 0:2 uuid"));
         assert!(patched.contains("setenv mmcdev 0"));
         assert!(patched.len() <= 256);
+        let extlinux =
+            fs::read_to_string(dir.path().join("extlinux/extlinux.conf")).expect("extlinux");
+        assert!(extlinux.contains("LINUX /Image"));
+        assert!(extlinux.contains("INITRD /initrd.img-6.18-test"));
+        assert!(extlinux.contains("FDTDIR /dtb"));
+        assert!(extlinux.contains("root=PARTUUID=1a2b3c4d-02"));
     }
 
     #[test]
@@ -504,8 +644,10 @@ mod tests {
         fs::create_dir_all(dir.path().join("EFI/BOOT")).expect("efi dir");
         fs::write(dir.path().join("EFI/BOOT/GRUB.CFG"), "linux /Image\n").expect("grub");
         fs::write(dir.path().join("uEnv.txt"), "# empty by default\n").expect("uenv");
+        let target = test_target_with_mbr(dir.path());
 
-        let report = patch_mounted_boot_partition_for_test(dir.path());
+        let report = patch_mounted_boot_partition(dir.path(), Path::new("/dev/testp1"), &target)
+            .expect("patch");
 
         assert_eq!(report.status, BootPatchStatus::Patched);
         let patched = fs::read_to_string(dir.path().join("uEnv.txt")).expect("patched uenv");
@@ -547,18 +689,15 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "linux")]
-    fn patch_mounted_boot_partition_for_test(boot_dir: &Path) -> BootPatchReport {
-        patch_mounted_boot_partition(boot_dir, Path::new("/dev/testp1")).expect("patch")
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    fn patch_mounted_boot_partition_for_test(boot_dir: &Path) -> BootPatchReport {
-        let uenv_path = boot_dir.join("uEnv.txt");
-        let original = fs::read_to_string(&uenv_path).expect("uenv");
-        let style = detect_boot_patch_style(boot_dir, &original).expect("style");
-        let plan = patch_plan(style);
-        fs::write(&uenv_path, plan.content).expect("write patch");
-        BootPatchReport::patched(plan.summary, vec![plan.detail.to_string()])
+    fn test_target_with_mbr(dir: &Path) -> PathBuf {
+        let target = dir.join("target.img");
+        let mut mbr = [0_u8; 512];
+        mbr[440..444].copy_from_slice(&0x1a2b3c4d_u32.to_le_bytes());
+        let part2 = 446 + 16;
+        mbr[part2 + 4] = 0x83;
+        mbr[510] = 0x55;
+        mbr[511] = 0xaa;
+        fs::write(&target, mbr).expect("target mbr");
+        target
     }
 }

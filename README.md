@@ -60,7 +60,7 @@ or by setting `TOBI_MANIFEST_URL` in the initramfs environment.
 
 The production image does not embed a downloadable-image catalog. If the board cannot reach the hosted catalog, TOBI falls back to local-image flashing only and asks the user to attach FAT32 media with a compatible image file.
 
-When a proxy is needed, TOBI prompts for UTC system time before the proxy URL so TLS validation can succeed even if automatic time sync failed.
+When a proxy is needed, TOBI prompts for UTC system time first so TLS validation can succeed even if automatic time sync failed. It then lets the user choose the TI proxy (`http://webproxy.ext.ti.com:80`) or enter a manual proxy URL.
 
 ## License
 
@@ -187,7 +187,7 @@ Replace `am62pxx-evm` with another supported machine to generate that board's TO
 
 The SD image is user-flashable. It boots TOBI into RAM and leaves the target eMMC free to be overwritten by the installer.
 
-When flashing to eMMC, TOBI runs a post-flash boot patcher before reboot. It mounts the installed boot partition, updates `uEnv.txt` for recognized TI Yocto, TI Debian, and Armbian layouts so U-Boot selects the eMMC MMC index and rootfs partition, then unmounts the partition. The TUI shows this as an explicit install phase, and the success popup includes the patch result and changed boot settings.
+When flashing to eMMC, TOBI runs a post-flash boot patcher before reboot. It mounts the installed boot partition, updates `uEnv.txt` for recognized TI Yocto, TI Debian, and Armbian layouts so U-Boot selects the eMMC MMC index and rootfs partition, and adds an `extlinux/extlinux.conf` eMMC bootflow fallback for Armbian-style images whose built-in U-Boot environment starts on SD. The TUI shows this as an explicit install phase, and the success popup includes the patch result and changed boot settings.
 
 ## TOBI-lite For AM62-SIP Low Memory Testing
 

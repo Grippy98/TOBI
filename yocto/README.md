@@ -57,7 +57,7 @@ tobi.manifest=https://example.com/catalog.json
 
 No downloadable-image catalog is embedded into the initramfs. If the hosted catalog cannot be reached at runtime, TOBI keeps running and offers only the local custom-image flow.
 
-If the network is present but a proxy is required, the TUI recovery flow asks the user to set UTC system time first, then enter the proxy URL before retrying the hosted catalog.
+If the network is present but a proxy is required, the TUI recovery flow asks the user to set UTC system time first, then choose the TI proxy (`http://webproxy.ext.ti.com:80`) or enter a manual proxy URL before retrying the hosted catalog.
 
 To force that proxy/time path for board testing, add this kernel argument:
 
