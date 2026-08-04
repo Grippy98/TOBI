@@ -1,4 +1,4 @@
-From f04946b3605e1b8109c49aec6e2fbc39dcc1af75 Mon Sep 17 00:00:00 2001
+From b92b5ef82448ee80bd4a83329c2ffe8861beafe5 Mon Sep 17 00:00:00 2001
 From: Andrei Aldea <andrei1998@gmail.com>
 Date: Tue, 4 Aug 2026 15:13:49 -0500
 Subject: [PATCH] board: beagleplay: enable IT66121 HDMI boot menu
@@ -16,9 +16,9 @@ Signed-off-by: Andrei Aldea <andrei1998@gmail.com>
  drivers/video/bridge/Kconfig           |  11 +
  drivers/video/bridge/Makefile          |   1 +
  drivers/video/bridge/ite-it66121.c     | 545 +++++++++++++++++++++++++
- drivers/video/tidss/tidss_drv.c        | 101 +++--
+ drivers/video/tidss/tidss_drv.c        | 105 +++--
  drivers/video/tidss/tidss_drv.h        |   1 +
- 7 files changed, 642 insertions(+), 27 deletions(-)
+ 7 files changed, 644 insertions(+), 29 deletions(-)
  create mode 100644 drivers/video/bridge/ite-it66121.c
 
 diff --git a/board/beagle/beagleplay/tobi.env b/board/beagle/beagleplay/tobi.env
@@ -639,7 +639,7 @@ index 0000000..ffffc7b
 +	.priv_auto = sizeof(struct it66121_priv),
 +};
 diff --git a/drivers/video/tidss/tidss_drv.c b/drivers/video/tidss/tidss_drv.c
-index 790ff6e..4b62c24 100644
+index 790ff6e..25a834b 100644
 --- a/drivers/video/tidss/tidss_drv.c
 +++ b/drivers/video/tidss/tidss_drv.c
 @@ -22,6 +22,7 @@
@@ -818,6 +818,15 @@ index 790ff6e..4b62c24 100644
  	}
  
  	dss_vp_init(priv);
+@@ -1009,6 +1056,6 @@ U_BOOT_DRIVER(tidss_drv) = {
+ #if CONFIG_IS_ENABLED(VIDEO_REMOVE)
+-	.flags = DM_FLAG_OS_PREPARE,
++	.flags = DM_FLAG_PRE_RELOC | DM_FLAG_OS_PREPARE,
+ #else
+-	.flags = DM_FLAG_OS_PREPARE | DM_FLAG_LEAVE_PD_ON,
++	.flags = DM_FLAG_PRE_RELOC | DM_FLAG_OS_PREPARE | DM_FLAG_LEAVE_PD_ON,
+ #endif
+ };
 diff --git a/drivers/video/tidss/tidss_drv.h b/drivers/video/tidss/tidss_drv.h
 index 3d36b45..295186f 100644
 --- a/drivers/video/tidss/tidss_drv.h
