@@ -189,6 +189,36 @@ The SD image is user-flashable. It boots TOBI into RAM and leaves the target eMM
 
 When flashing to eMMC, TOBI runs a post-flash boot patcher before reboot. It mounts the installed boot partition, updates `uEnv.txt` for recognized TI Yocto, TI Debian, and Armbian layouts so U-Boot selects the eMMC MMC index and rootfs partition, and adds an `extlinux/extlinux.conf` eMMC bootflow fallback for Armbian-style images whose built-in U-Boot environment starts on SD. The TUI shows this as an explicit install phase, and the success popup includes the patch result and changed boot settings.
 
+## BeaglePlay U-Boot Menu And Recovery Bundle
+
+The `dev` branch patches TI U-Boot 2026.01 for `MACHINE=beagleplay-ti` with a seven-second serial-console menu:
+
+1. Boot an OS from the SD card (`mmc1`, default).
+2. Boot an OS from eMMC (`mmc0`).
+3. Start TOBI Recovery, searching SD and then eMMC.
+
+The regular OS entries support TI's legacy `uEnv.txt` path followed by standard U-Boot bootflow discovery for `boot.scr`, extlinux, and EFI. A missing device, filesystem, boot file, or recovery component reports the error and returns to the menu instead of dropping out of the boot flow.
+
+TOBI SD images place the kernel, initramfs, and board DTB under the boot partition's `/recovery` directory. That directory normally appears as `/boot/recovery` after Linux mounts the boot partition. The root `uEnv.txt` remains compatible with an unmodified TI U-Boot and points it at the recovery payload.
+
+To add the same payload to another WIC image from a layer that depends on `meta-tobi`, inherit the opt-in class in that image or its `.bbappend`:
+
+```bitbake
+inherit tobi-recovery
+```
+
+The class adds `recovery/Image`, `recovery/uInitrd`, and the machine DTBs to `IMAGE_BOOT_FILES`. Check the target WKS boot-partition size before enabling it. It is intentionally not injected into every TI image by default yet: TOBI is a write-capable recovery environment, adds meaningful image size, and needs a defined signing and update policy for secure production systems.
+
+Build the initial BeaglePlay test image with:
+
+```sh
+MACHINE=beagleplay-ti ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+The menu is currently available on the debug UART. TI U-Boot 2026.01 does not include a driver for BeaglePlay's IT66121 HDMI bridge, so an HDMI U-Boot menu requires separate bridge-driver work; Linux and the TOBI application can still use HDMI normally.
+
+Directly chain-loading a second K3 `u-boot.img` is deliberately not part of this first version. On AM62x, ROM, `tiboot3.bin`, `tispl.bin`, TF-A/OP-TEE, and A53 U-Boot form a staged handoff, and a second U-Boot can depend on state supplied by the earlier stages. The supported path here is to let TOBI U-Boot boot the selected distro's normal OS configuration. Keeping a fully separate stock TI U-Boot should instead use a board-supported alternate boot source or bootloader slot and reboot into that chain.
+
 ## TOBI-lite For AM62-SIP Low Memory Testing
 
 `SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite still drives the HDMI framebuffer UI while trimming the rest of the installer environment before flashing eMMC.

@@ -189,11 +189,35 @@ The expected output is a compressed initramfs under the TI deploy directory, usu
 deploy-ti/images/am62pxx-evm/tobi-initramfs-am62pxx-evm.cpio.xz
 ```
 
+## BeaglePlay Recovery Boot Test
+
+`meta-tobi` carries a `u-boot-ti-staging_2026.01.bbappend` for `beagleplay-ti`. It enables the TOBI UART boot menu and builds TOBI SD images with their Linux kernel, initramfs, and DTB under the boot filesystem's `/recovery` directory.
+
+```sh
+MACHINE=beagleplay-ti ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
+```
+
+At the BeaglePlay debug UART, verify all of these cases:
+
+1. Let the seven-second timeout expire and confirm the SD entry boots.
+2. Select eMMC and confirm its `uEnv.txt`, boot script, extlinux, or EFI flow boots without scanning SD as a fallback.
+3. Select TOBI Recovery and confirm it loads `/recovery/Image`, `/recovery/uInitrd`, and `/recovery/dtb/ti/k3-am625-beagleplay.dtb`.
+4. Repeat each entry with its media removed or a required file renamed and confirm the menu returns after the error.
+
+For an additional WIC image, opt in from that image recipe or `.bbappend`:
+
+```bitbake
+inherit tobi-recovery
+```
+
+This only populates `IMAGE_BOOT_FILES`; ensure the WKS boot partition has room for the added kernel and initramfs. Do not enable it globally on secure production images until the recovery signing, rollback, and update policy is defined.
+
 ## Next Integration Work
 
 1. Build a target `tobi` binary through a Yocto-native Rust recipe or through a cross-build job.
-2. Add U-Boot/FIT packaging so supported boards can boot kernel + DTB + TOBI initramfs fully into RAM from eMMC.
-3. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
+2. Convert the three-file recovery payload to a signed FIT and define recovery update/rollback behavior.
+3. Generalize the tested BeaglePlay U-Boot menu media mappings to the remaining TI EVMs.
+4. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
 
 ## License
 

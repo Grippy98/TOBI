@@ -3,7 +3,7 @@ DESCRIPTION = "Flashable two-part SD-card image that boots the TOBI initramfs in
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
-inherit core-image
+inherit core-image tobi-recovery
 
 IMAGE_FEATURES = ""
 IMAGE_LINGUAS = ""
@@ -20,31 +20,12 @@ PACKAGE_INSTALL = "\
 
 IMAGE_ROOTFS_SIZE = "65536"
 
-TOBI_INITRAMFS_IMAGE = "tobi-initramfs-${MACHINE}.rootfs.cpio.xz"
-
-TOBI_BOOT_DTB_FILES = ""
-TOBI_BOOT_DTB_FILES:am62pxx-evm = "k3-am62p5-sk.dtb"
-TOBI_BOOT_DTB_FILES:am62xx-evm = "k3-am625-sk.dtb"
-TOBI_BOOT_DTB_FILES:am62xx-lp-evm = "k3-am62-lp-sk.dtb"
-TOBI_BOOT_DTB_FILES:am62xxsip-evm = "k3-am6254atl-sk.dtb"
-TOBI_BOOT_DTB_FILES:beagleplay-ti = "k3-am625-beagleplay.dtb"
-TOBI_BOOT_DTB_FILES:am62axx-evm = "k3-am62a7-sk.dtb"
-TOBI_BOOT_DTB_FILES:am62lxx-evm = "k3-am62l3-evm.dtb"
-TOBI_BOOT_DTB_FILES:am64xx-evm = "k3-am642-sk.dtb k3-am642-evm.dtb"
-TOBI_BOOT_DTB_FILES:am68-sk = "k3-am68-sk-base-board.dtb"
-TOBI_BOOT_DTB_FILES:am69-sk = "k3-am69-sk.dtb"
-
 IMAGE_BOOT_FILES += "\
-    Image \
-    ${@' '.join(['%s;dtb/ti/%s' % (dtb, dtb) for dtb in d.getVar('TOBI_BOOT_DTB_FILES').split()])} \
-    ${TOBI_INITRAMFS_IMAGE};uInitrd \
     tobi-uEnv.txt;uEnv.txt \
 "
 
 do_image_wic[depends] += "\
     tobi-bootfiles:do_deploy \
-    tobi-initramfs:do_image_complete \
-    virtual/kernel:do_deploy \
 "
 
 export IMAGE_BASENAME = "tobi-sd-image"

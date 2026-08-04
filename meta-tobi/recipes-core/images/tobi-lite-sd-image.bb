@@ -5,7 +5,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171d
 
 COMPATIBLE_MACHINE = "am62xxsip-evm"
 
-inherit core-image
+inherit core-image tobi-recovery
 
 IMAGE_FEATURES = ""
 IMAGE_LINGUAS = ""
@@ -22,20 +22,14 @@ PACKAGE_INSTALL = "\
 
 IMAGE_ROOTFS_SIZE = "65536"
 
-TOBI_INITRAMFS_IMAGE = "tobi-lite-initramfs-${MACHINE}.rootfs.cpio.xz"
-TOBI_BOOT_DTB_FILES = "k3-am6254atl-sk.dtb"
+TOBI_RECOVERY_IMAGE = "tobi-lite-initramfs"
 
 IMAGE_BOOT_FILES += "\
-    Image \
-    ${@' '.join(['%s;dtb/ti/%s' % (dtb, dtb) for dtb in d.getVar('TOBI_BOOT_DTB_FILES').split()])} \
-    ${TOBI_INITRAMFS_IMAGE};uInitrd \
     tobi-uEnv.txt;uEnv.txt \
 "
 
 do_image_wic[depends] += "\
     tobi-bootfiles:do_deploy \
-    tobi-lite-initramfs:do_image_complete \
-    virtual/kernel:do_deploy \
 "
 
 export IMAGE_BASENAME = "tobi-lite-sd-image"
