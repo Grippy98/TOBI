@@ -191,18 +191,19 @@ deploy-ti/images/am62pxx-evm/tobi-initramfs-am62pxx-evm.cpio.xz
 
 ## BeaglePlay Recovery Boot Test
 
-`meta-tobi` carries a `u-boot-ti-staging_2026.01.bbappend` for `beagleplay-ti`. It enables the TOBI UART boot menu and builds TOBI SD images with their Linux kernel, initramfs, and DTB under the boot filesystem's `/recovery` directory.
+`meta-tobi` carries a `u-boot-ti-staging_2026.01.bbappend` for `beagleplay-ti`. It enables the TOBI boot menu on both the UART and HDMI and builds TOBI SD images with their Linux kernel, initramfs, and DTB under the boot filesystem's `/recovery` directory. The U-Boot IT66121 path is video-only and keeps UART output active as a fallback.
 
 ```sh
 MACHINE=beagleplay-ti ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
 ```
 
-At the BeaglePlay debug UART, verify all of these cases:
+With the debug UART and an HDMI monitor connected, verify all of these cases:
 
 1. Let the seven-second timeout expire and confirm the SD entry boots.
 2. Select eMMC and confirm its `uEnv.txt`, boot script, extlinux, or EFI flow boots without scanning SD as a fallback.
 3. Select TOBI Recovery and confirm it loads `/recovery/Image`, `/recovery/uInitrd`, and `/recovery/dtb/ti/k3-am625-beagleplay.dtb`.
 4. Repeat each entry with its media removed or a required file renamed and confirm the menu returns after the error.
+5. Confirm the same menu is visible over HDMI, then repeat a boot with HDMI disconnected and confirm UART operation is unchanged.
 
 For an additional WIC image, opt in from that image recipe or `.bbappend`:
 
@@ -217,7 +218,8 @@ This only populates `IMAGE_BOOT_FILES`; ensure the WKS boot partition has room f
 1. Build a target `tobi` binary through a Yocto-native Rust recipe or through a cross-build job.
 2. Convert the three-file recovery payload to a signed FIT and define recovery update/rollback behavior.
 3. Generalize the tested BeaglePlay U-Boot menu media mappings to the remaining TI EVMs.
-4. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
+4. Hardware-validate the U-Boot IT66121 EDID and 1280x720 fallback paths across several monitors.
+5. Add USB/SD automount handling before TOBI starts, so custom local images are visible.
 
 ## License
 

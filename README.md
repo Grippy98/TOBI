@@ -191,7 +191,7 @@ When flashing to eMMC, TOBI runs a post-flash boot patcher before reboot. It mou
 
 ## BeaglePlay U-Boot Menu And Recovery Bundle
 
-The `dev` branch patches TI U-Boot 2026.01 for `MACHINE=beagleplay-ti` with a seven-second serial-console menu:
+The `dev` branch patches TI U-Boot 2026.01 for `MACHINE=beagleplay-ti` with a seven-second menu on both the debug UART and HDMI:
 
 1. Boot an OS from the SD card (`mmc1`, default).
 2. Boot an OS from eMMC (`mmc0`).
@@ -215,7 +215,7 @@ Build the initial BeaglePlay test image with:
 MACHINE=beagleplay-ti ./yocto/scripts/build-tobi-sd-image-ubuntu-x86_64.sh
 ```
 
-The menu is currently available on the debug UART. TI U-Boot 2026.01 does not include a driver for BeaglePlay's IT66121 HDMI bridge, so an HDMI U-Boot menu requires separate bridge-driver work; Linux and the TOBI application can still use HDMI normally.
+The layer carries a video-only IT66121 bridge port and extends TI's TIDSS driver to activate the AM625 DPI pipeline. U-Boot reads the monitor EDID and falls back to 1280x720 at 60 Hz when EDID is unavailable. It emits DVI-compatible TMDS video over the HDMI connector; HDMI audio, HDCP, and runtime hot-plug handling are out of scope. Output remains multiplexed to the UART, so a missing or unsupported display does not remove serial access. Linux uses its normal DRM/TIDSS and IT66121 drivers after boot.
 
 Directly chain-loading a second K3 `u-boot.img` is deliberately not part of this first version. On AM62x, ROM, `tiboot3.bin`, `tispl.bin`, TF-A/OP-TEE, and A53 U-Boot form a staged handoff, and a second U-Boot can depend on state supplied by the earlier stages. The supported path here is to let TOBI U-Boot boot the selected distro's normal OS configuration. Keeping a fully separate stock TI U-Boot should instead use a board-supported alternate boot source or bootloader slot and reboot into that chain.
 
