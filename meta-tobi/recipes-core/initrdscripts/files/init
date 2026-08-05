@@ -172,7 +172,7 @@ load_modules() {
         cdns-dphy \
         cdns-mhdp8546 \
         sii902x \
-        it66121 \
+        ite-it66121 \
         tidss \
         fbcon \
         usbhid \
