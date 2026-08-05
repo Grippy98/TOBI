@@ -191,7 +191,9 @@ When flashing to eMMC, TOBI runs a post-flash boot patcher before reboot. It mou
 
 ## BeaglePlay U-Boot Menu And Recovery Bundle
 
-The `dev` branch patches TI U-Boot 2026.01 for `MACHINE=beagleplay-ti` with a seven-second menu on both the debug UART and HDMI:
+The `dev` branch patches TI U-Boot 2026.01 for `MACHINE=beagleplay-ti` with a
+centered TI-red splash for three seconds followed by a ten-second menu on both
+the debug UART and HDMI:
 
 1. Boot an OS from the SD card (`mmc1`, default).
 2. Boot an OS from eMMC (`mmc0`).
