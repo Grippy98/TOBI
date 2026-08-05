@@ -7,6 +7,10 @@ Add a video-only ITE IT66121 bridge driver with HPD, EDID, fallback timing, RGB 
 
 Route TOBI output to both serial and vidconsole so a missing display never removes UART access.
 
+Teach the TIDSS graph walker that terminal sinks such as an HDMI connector use
+a singular port node. Without this, the valid BeaglePlay DPI pipeline is
+rejected before the IT66121 driver can probe.
+
 Upstream-Status: Inappropriate [includes TOBI-specific console policy]
 
 Signed-off-by: Andrei Aldea <andrei1998@gmail.com>
@@ -16,9 +20,9 @@ Signed-off-by: Andrei Aldea <andrei1998@gmail.com>
  drivers/video/bridge/Kconfig           |  11 +
  drivers/video/bridge/Makefile          |   1 +
  drivers/video/bridge/ite-it66121.c     | 545 +++++++++++++++++++++++++
- drivers/video/tidss/tidss_drv.c        | 105 +++--
+ drivers/video/tidss/tidss_drv.c        | 114 +++--
  drivers/video/tidss/tidss_drv.h        |   1 +
- 7 files changed, 644 insertions(+), 29 deletions(-)
+ 7 files changed, 653 insertions(+), 31 deletions(-)
  create mode 100644 drivers/video/bridge/ite-it66121.c
 
 diff --git a/board/beagle/beagleplay/tobi.env b/board/beagle/beagleplay/tobi.env
@@ -668,7 +672,34 @@ index 790ff6e..25a834b 100644
  
  	dss_vid_csc_enable(priv, hw_plane, false);
  
-@@ -815,6 +818,19 @@ static int tidss_enable_pipeline_components(struct tidss_drv_priv *priv)
+@@ -719,10 +722,10 @@ bool is_pipeline_components_enabled(ofnode endpoint, ofnode prev)
+ bool is_pipeline_components_enabled(ofnode endpoint, ofnode prev)
+ {
+ 	ofnode ports_parent = ofnode_graph_get_port_parent(endpoint);
+-	ofnode ports = ofnode_find_subnode(ports_parent, "ports");
++	ofnode ports;
+ 	ofnode port, local_endpoint, remote_endpoint;
+ 
+-	if (!ofnode_valid(ports) || !ofnode_valid(ports_parent))
++	if (!ofnode_valid(ports_parent))
+ 		return false;
+ 
+ 	if (strstr(ofnode_get_name(ports_parent), "dss"))
+@@ -734,6 +737,13 @@ bool is_pipeline_components_enabled(ofnode endpoint, ofnode prev)
+ 		 * if dss is reached, return true.
+ 		 */
+ 		return true;
++
++	ports = ofnode_find_subnode(ports_parent, "ports");
++	if (!ofnode_valid(ports)) {
++		/* Graph sinks such as hdmi-connector use a single port node. */
++		port = ofnode_find_subnode(ports_parent, "port");
++		return ofnode_valid(port) && ofnode_is_enabled(ports_parent);
++	}
+ 
+ 	/*
+ 	 *Traverse all endpoints of the ports node.
+@@ -815,6 +825,19 @@ static int tidss_enable_pipeline_components(struct tidss_drv_priv *priv)
  				 * initialize it only and then check for other videoports
  				 */
  				break;
@@ -688,7 +719,7 @@ index 790ff6e..25a834b 100644
  			}
  		}
  	}
-@@ -829,8 +845,10 @@ static int tidss_drv_probe(struct udevice *dev)
+@@ -829,8 +852,10 @@ static int tidss_drv_probe(struct udevice *dev)
  	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
  	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
  	struct tidss_drv_priv *priv = dev_get_priv(dev);
@@ -699,7 +730,7 @@ index 790ff6e..25a834b 100644
  	unsigned int i;
  	int ret = 0;
  	const char *mode;
-@@ -859,35 +877,56 @@ static int tidss_drv_probe(struct udevice *dev)
+@@ -859,35 +884,56 @@ static int tidss_drv_probe(struct udevice *dev)
  		return ret;
  	}
  
@@ -776,7 +807,7 @@ index 790ff6e..25a834b 100644
  
  	/* Common address */
  	priv->base_common = dev_remap_addr_name(dev, priv->feat->common);
-@@ -907,7 +946,8 @@ static int tidss_drv_probe(struct udevice *dev)
+@@ -907,7 +953,8 @@ static int tidss_drv_probe(struct udevice *dev)
  	dss_vid_write(priv, 0, DSS_VID_BA_EXT_1, (u64)uc_plat->base >> 32);
  
  	for (i = 0; i < priv->active_pipelines; i++) {
@@ -786,7 +817,7 @@ index 790ff6e..25a834b 100644
  		if (ret) {
  			dss_plane_enable(priv, 0, false);
  				return ret;
-@@ -923,9 +963,6 @@ static int tidss_drv_probe(struct udevice *dev)
+@@ -923,9 +970,6 @@ static int tidss_drv_probe(struct udevice *dev)
  		priv->base_vp[i] = dev_remap_addr_name(dev, priv->feat->vp_name[i]);
  	}
  
@@ -796,7 +827,7 @@ index 790ff6e..25a834b 100644
  	for (i = 0; i < priv->active_pipelines; i++) {
  
  		ret = clk_get_by_name(dev,
-@@ -942,10 +979,20 @@ static int tidss_drv_probe(struct udevice *dev)
+@@ -942,10 +986,20 @@ static int tidss_drv_probe(struct udevice *dev)
  		/* Video Port cloks */
  		dss_vp_enable_clk(priv, priv->active_hw_vps[i]);
  
@@ -818,7 +849,7 @@ index 790ff6e..25a834b 100644
  	}
  
  	dss_vp_init(priv);
-@@ -1009,6 +1056,6 @@ U_BOOT_DRIVER(tidss_drv) = {
+@@ -1009,6 +1063,6 @@ U_BOOT_DRIVER(tidss_drv) = {
  #if CONFIG_IS_ENABLED(VIDEO_REMOVE)
 -	.flags = DM_FLAG_OS_PREPARE,
 +	.flags = DM_FLAG_PRE_RELOC | DM_FLAG_OS_PREPARE,
