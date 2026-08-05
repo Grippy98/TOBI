@@ -7,6 +7,10 @@ Add a video-only ITE IT66121 bridge driver with HPD, EDID, fallback timing, RGB 
 
 Route TOBI output to both serial and vidconsole so a missing display never removes UART access.
 
+Show the packaged TI logo for three seconds before opening the TOBI menu, then
+leave the menu available for ten seconds. Try loading the logo from SD first and
+eMMC second so a missing boot partition does not interrupt boot.
+
 Teach the TIDSS graph walker that terminal sinks such as an HDMI connector use
 a singular port node. Without this, the valid BeaglePlay DPI pipeline is
 rejected before the IT66121 driver can probe.
@@ -15,14 +19,15 @@ Upstream-Status: Inappropriate [includes TOBI-specific console policy]
 
 Signed-off-by: Andrei Aldea <andrei1998@gmail.com>
 ---
- board/beagle/beagleplay/tobi.env       |   4 +
- configs/am62x_beagleplay_a53_defconfig |   6 +
+ board/beagle/beagleplay/tobi.env       |   9 +-
+ board/beagle/beagleplay/beagleplay.c   |  24 ++
+ configs/am62x_beagleplay_a53_defconfig |  18 +-
  drivers/video/bridge/Kconfig           |  11 +
  drivers/video/bridge/Makefile          |   1 +
  drivers/video/bridge/ite-it66121.c     | 545 +++++++++++++++++++++++++
- drivers/video/tidss/tidss_drv.c        | 114 +++--
+ drivers/video/tidss/tidss_drv.c        | 116 ++++--
  drivers/video/tidss/tidss_drv.h        |   1 +
- 7 files changed, 653 insertions(+), 31 deletions(-)
+ 8 files changed, 692 insertions(+), 33 deletions(-)
  create mode 100644 drivers/video/bridge/ite-it66121.c
 
 diff --git a/board/beagle/beagleplay/tobi.env b/board/beagle/beagleplay/tobi.env
@@ -40,16 +45,102 @@ index 789cf9b..9f183af 100644
  name_kern=Image
  console=ttyS2,115200n8
  args_all=setenv optargs ${optargs} earlycon=ns16550a,mmio32,0x02800000
+@@ -25,6 +29,9 @@
+ splashimage=0x80200000
+ splashpos=m,m
+ splashsource=mmc
++splashdevpart=1:1
++tobi_splash_delay=3
++preboot=if load mmc 1:1 ${splashimage} ${splashfile} || load mmc 0:1 ${splashimage} ${splashfile}; then cls; bmp display ${splashimage} m m; sleep ${tobi_splash_delay}; fi
+ 
+ #if CONFIG_BOOTMETH_ANDROID
+ #include <env/ti/android.env>
+@@ -36,7 +43,7 @@
+  * Keep the normal OS entries compatible with both the legacy TI uEnv.txt
+  * flow and standard bootflow (extlinux, boot.scr, and EFI).
+  */
+-bootdelay=7
++bootdelay=10
+ bootmenu_default=0
+ bootmenu_title==== TOBI Boot Menu ===
+ bootmenu_subtitle=BeaglePlay recovery bootloader
+diff --git a/board/beagle/beagleplay/beagleplay.c b/board/beagle/beagleplay/beagleplay.c
+index 9bc9ca3..b316f54 100644
+--- a/board/beagle/beagleplay/beagleplay.c
++++ b/board/beagle/beagleplay/beagleplay.c
+@@ -11,11 +11,35 @@
+ #include <env.h>
+ #include <fdt_support.h>
+ #include <spl.h>
++#include <splash.h>
+ 
+ #include <asm/arch/hardware.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++#if CONFIG_IS_ENABLED(SPLASH_SCREEN)
++static struct splash_location default_splash_locations[] = {
++	{
++		.name = "mmc",
++		.storage = SPLASH_STORAGE_MMC,
++		.flags = SPLASH_STORAGE_FS,
++		.devpart = "1:1",
++	},
++	{
++		.name = "emmc",
++		.storage = SPLASH_STORAGE_MMC,
++		.flags = SPLASH_STORAGE_FS,
++		.devpart = "0:1",
++	},
++};
++
++int splash_screen_prepare(void)
++{
++	return splash_source_load(default_splash_locations,
++				  ARRAY_SIZE(default_splash_locations));
++}
++#endif
++
+ struct efi_fw_image fw_images[] = {
+ 	{
+ 		.image_type_id = BEAGLEPLAY_TIBOOT3_IMAGE_GUID,
 diff --git a/configs/am62x_beagleplay_a53_defconfig b/configs/am62x_beagleplay_a53_defconfig
 index ea75f32..ca846bc 100644
 --- a/configs/am62x_beagleplay_a53_defconfig
 +++ b/configs/am62x_beagleplay_a53_defconfig
-@@ -118,6 +118,12 @@ CONFIG_RESET_TI_SCI=y
+@@ -28,8 +28,9 @@
+ # CONFIG_SYS_MALLOC_CLEAR_ON_INIT is not set
+ CONFIG_BOOTSTD_FULL=y
+ CONFIG_ENV_SOURCE_FILE="tobi"
+-CONFIG_BOOTDELAY=7
++CONFIG_BOOTDELAY=10
+ CONFIG_AUTOBOOT_MENU_SHOW=y
++CONFIG_USE_PREBOOT=y
+ CONFIG_AUTOBOOT_KEYED=y
+ CONFIG_AUTOBOOT_PROMPT="Press SPACE to abort autoboot in %d seconds\n"
+ CONFIG_AUTOBOOT_DELAY_STR="d"
+@@ -50,6 +51,7 @@
+ CONFIG_SPL_YMODEM_SUPPORT=y
+ CONFIG_CMD_BOOTEFI_SELFTEST=y
+ CONFIG_CMD_BOOTMENU=y
++CONFIG_CMD_BMP=y
+ CONFIG_CMD_NVEDIT_EFI=y
+ CONFIG_CMD_GPIO=y
+ CONFIG_CMD_GPIO_READ=y
+@@ -118,6 +120,20 @@ CONFIG_RESET_TI_SCI=y
  CONFIG_DM_RTC=y
  CONFIG_RTC_EMULATION=y
  CONFIG_DM_SERIAL=y
 +CONFIG_VIDEO=y
 +CONFIG_VIDEO_ANSI=y
++CONFIG_VIDEO_LOGO=y
++CONFIG_SPLASH_SCREEN=y
++CONFIG_SPLASH_SCREEN_ALIGN=y
++CONFIG_HIDE_LOGO_VERSION=y
++CONFIG_SPLASH_SOURCE=y
++CONFIG_BMP_24BPP=y
++CONFIG_BMP_32BPP=y
++CONFIG_VIDEO_BMP_GZIP=y
 +CONFIG_PANEL=y
 +CONFIG_VIDEO_BRIDGE=y
 +CONFIG_VIDEO_BRIDGE_ITE_IT66121=y
