@@ -221,27 +221,17 @@ The layer carries a video-only IT66121 bridge port and extends TI's TIDSS driver
 
 Directly chain-loading a second K3 `u-boot.img` is deliberately not part of this first version. On AM62x, ROM, `tiboot3.bin`, `tispl.bin`, TF-A/OP-TEE, and A53 U-Boot form a staged handoff, and a second U-Boot can depend on state supplied by the earlier stages. The supported path here is to let TOBI U-Boot boot the selected distro's normal OS configuration. Keeping a fully separate stock TI U-Boot should instead use a board-supported alternate boot source or bootloader slot and reboot into that chain.
 
-## TOBI-lite For AM62-SIP Low Memory Testing
+## Optional TOBI-lite AM62-SIP Test Image
 
-`SK-AM62-SIP` / `am62xxsip-evm` has a 256 MiB RAM configuration, so this branch also carries **TOBI-lite** image targets for that board only. TOBI-lite still drives the HDMI framebuffer UI while trimming the rest of the installer environment before flashing eMMC.
+`SK-AM62-SIP` / `am62xxsip-evm` has 512 MiB of integrated LPDDR4. The normal
+all-board build and release matrix therefore use the regular TOBI image for
+this board. TI's AM6254ATL U-Boot and Linux device trees both describe the full
+512 MiB region at `0x80000000`.
 
-The low-memory boot path uses:
-
-```text
-console=ttyS2,115200n8
-console=tty0
-tobi.ttys=/dev/tty0,/dev/ttyS2
-tobi.lite=1
-cma=32M
-```
-
-The initramfs keeps AM62 essentials for eMMC/SD, USB mass storage/HID, FAT/ext4 local media, CPSW Ethernet, DRM/TIDSS HDMI, and zram swap. The lite recipe starts from TI `kernel-modules` and prunes the initramfs module tree to the AM62-SIP allowlist plus dependencies from `modules.dep`.
-
-Only one TOBI app runs by default. HDMI owns the active installer; the serial console prints a lightweight prompt. If the user types `SERIAL`, the initramfs stops the HDMI TOBI process and starts TOBI on the serial console instead. HDMI mode is not restarted after that handoff.
-
-For hardware testing, TOBI-lite deliberately relaxes the `.wic.xz` RAM guard. Normal TOBI budgets xz images conservatively unless the catalog supplies measured decoder memory. TOBI-lite uses those measured values when available, otherwise falls back to the gzip-sized xz estimate, and does not block flashing solely on that estimate. This is to verify whether the existing TI `.wic.xz` images can actually stream on 256 MiB hardware; if they are unstable, the catalog should publish AM62-SIP images as `.wic.gz` or low-window `.wic.zst`.
-
-The AM62-SIP catalog entries include measured xz decoder memory from real images: about 8 MiB for current TI Processor SDK AM62-SIP images and about 32 MiB for current Armbian AM62-SIP images. TOBI adds working-room margin on top of those decoder values. The initramfs also caps `/run` and `/tmp` tmpfs size, enables zram swap in RAM only, lowers dirty writeback limits, asks the app to periodically flush target writes, and logs memory snapshots to `/run/tobi-memory.log`. The `meta-tobi` layer adds an AM62-SIP-only `linux-ti-staging` kernel fragment so `zram.ko` and `zsmalloc.ko` are available for TOBI-lite without changing the regular board images.
+The branch retains **TOBI-lite** as an optional constrained-memory diagnostic
+target. It trims the kernel module set, enables RAM-only zram swap, and relaxes
+the `.wic.xz` memory guard for stress testing. It is not required for normal
+AM62-SIP operation and is not selected by the all-board build scripts.
 
 Build the TOBI-lite SD image with:
 
