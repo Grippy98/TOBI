@@ -9,7 +9,8 @@ Route TOBI output to both serial and vidconsole so a missing display never remov
 
 Show the packaged TI logo for three seconds before opening the TOBI menu, then
 leave the menu available for ten seconds. Try loading the logo from SD first and
-eMMC second so a missing boot partition does not interrupt boot.
+eMMC second so a missing boot partition does not interrupt boot. Use a dark
+console theme so the boot menu is white-on-black.
 
 Teach the TIDSS graph walker that terminal sinks such as an HDMI connector use
 a singular port node. Without this, the valid BeaglePlay DPI pipeline is
@@ -21,13 +22,13 @@ Signed-off-by: Andrei Aldea <andrei1998@gmail.com>
 ---
  board/beagle/beagleplay/tobi.env       |   9 +-
  board/beagle/beagleplay/beagleplay.c   |  24 ++
- configs/am62x_beagleplay_a53_defconfig |  18 +-
+ configs/am62x_beagleplay_a53_defconfig |  19 +-
  drivers/video/bridge/Kconfig           |  11 +
  drivers/video/bridge/Makefile          |   1 +
  drivers/video/bridge/ite-it66121.c     | 545 +++++++++++++++++++++++++
  drivers/video/tidss/tidss_drv.c        | 116 ++++--
  drivers/video/tidss/tidss_drv.h        |   1 +
- 8 files changed, 692 insertions(+), 33 deletions(-)
+ 8 files changed, 693 insertions(+), 33 deletions(-)
  create mode 100644 drivers/video/bridge/ite-it66121.c
 
 diff --git a/board/beagle/beagleplay/tobi.env b/board/beagle/beagleplay/tobi.env
@@ -127,12 +128,13 @@ index ea75f32..ca846bc 100644
  CONFIG_CMD_NVEDIT_EFI=y
  CONFIG_CMD_GPIO=y
  CONFIG_CMD_GPIO_READ=y
-@@ -118,6 +120,20 @@ CONFIG_RESET_TI_SCI=y
+@@ -118,6 +120,21 @@ CONFIG_RESET_TI_SCI=y
  CONFIG_DM_RTC=y
  CONFIG_RTC_EMULATION=y
  CONFIG_DM_SERIAL=y
 +CONFIG_VIDEO=y
 +CONFIG_VIDEO_ANSI=y
++CONFIG_SYS_WHITE_ON_BLACK=y
 +CONFIG_VIDEO_LOGO=y
 +CONFIG_SPLASH_SCREEN=y
 +CONFIG_SPLASH_SCREEN_ALIGN=y
